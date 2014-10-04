@@ -45,4 +45,30 @@ validate d = (sumDigits (doubleEveryOther (toDigits d))) `mod` 10 == 0
 -- The Towers of Hanoi
 ---------------------------------
 
+type Peg = String
+type Move = (Peg, Peg)
+
+-- Move n dics from peg a to peg b (using peg c as temp).
+-- The algorithm is simple. To move n discs from a to b:
+-- 1. Move (n-1) discs a -> c using b as temp storage.
+-- 2. Move the remaining top disc a -> b.
+-- 3. Move (n-1) discs c -> b using a as temp storage.
+hanoi :: Integer -> Peg -> Peg -> Peg -> [Move]
+hanoi 0 _ _ _ = []
+hanoi 1 a b _ = [(a, b)]
+hanoi n a b c = (hanoi (n-1) a c b) ++ [(a, b)] ++ (hanoi (n-1) c b a)
+
+-- Using four pegs, we can decrease the cost a lot. My attempt isn't optimal I
+-- don't think. But it seems to be optimal for 1 to 4 discs at least. The
+-- strategy I've employed this:
+--
+-- 1. Move (n-2) discs a -> d
+-- 2. Move second-to-last disc a -> c
+-- 3. Move last disc a -> b
+-- 4. Move second-to-last disc c -> b
+-- 5. Move (n-2) dsics d -> b
+hanoi4 :: Integer -> Peg -> Peg -> Peg -> Peg -> [Move]
+hanoi4 0 _ _ _ _ = []
+hanoi4 1 a b _ _ = [(a, b)]
+hanoi4 n a b c d = (hanoi4 (n-2) a d b c) ++ [(a, c), (a, b), (c, a)] ++ (hanoi4 (n-2) d b c a)
 
