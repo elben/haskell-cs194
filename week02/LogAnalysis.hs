@@ -44,4 +44,49 @@ parse s = map parseMessage (lines s)
 -- Exercise 2
 -----------------------------
 
+timestamp :: LogMessage -> TimeStamp
+timestamp (LogMessage _ ts _) = ts
+timestamp _ = 0
+
+insert :: LogMessage -> MessageTree -> MessageTree
+insert (Unknown _) t = t
+insert m Leaf = Node Leaf m Leaf
+insert m (Node l m' r) =
+  if timestamp m <= timestamp m'
+  then Node (insert m l)  m' r
+  else Node l m' (insert m r)
+
+build :: [LogMessage] -> MessageTree
+build []     = Leaf
+build [x]    = insert x Leaf
+build (x:xs) = insert x (build xs)
+
+inOrder :: MessageTree -> [LogMessage]
+inOrder Leaf         = []
+inOrder (Node l m r) = (inOrder l) ++ [m] ++ (inOrder r)
+
+isErrorAndSevere :: MessageType -> Bool
+isErrorAndSevere (Error severity) = severity >= 50
+isErrorAndSevere _ = False
+
+
+whatWentWrong :: [LogMessage] -> [String]
+whatWentWrong ms = whatWentWrongHelper (inOrder (build ms))
+
+whatWentWrongHelper :: [LogMessage] -> [String]
+whatWentWrongHelper [] = []
+whatWentWrongHelper ((LogMessage mt _ s):ms) =
+  if isErrorAndSevere mt
+  then s:(whatWentWrongHelper ms)
+  else whatWentWrongHelper ms
+
+-- lm1 = parseMessage "W 3654 e8] PGTT ASF! 00f00000003.2: 0x000 - 0000: 00009dbfffec00000: Pround/f1743colled"
+-- lm2 = parseMessage "I 5053 pci_id: con ing!"
+-- lm3 = parseMessage "E 55 1034 'What a pity it wouldn't stay!' sighed the Lory, as soon as it was quite"
+-- r1 = (build [lm1, lm2, lm3])
+-- r2 = inOrder (build [lm1, lm2, lm3])
+-- wrong = whatWentWrong r2
+
+-- Running the program:
+-- wrongs = testWhatWentWrong parse whatWentWrong "error.log"
 
