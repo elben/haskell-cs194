@@ -74,8 +74,6 @@ heightOfNode (Node h _ _ _) = h
 
 numNodes :: Tree a -> Integer
 numNodes Leaf = 0
-numNodes (Node _ Leaf _ r) = (numNodes r) + 1
-numNodes (Node _ l _ Leaf) = (numNodes l) + 1
 numNodes (Node _ l _ r) = (numNodes l) + (numNodes r) + 1
 
 -- Tests
