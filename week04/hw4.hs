@@ -23,9 +23,9 @@ fun2' n = sum $ filter even (takeWhile (\m -> m /= 1) (iterate (\m -> if even m 
 checkFun2 :: Integer -> Bool
 checkFun2 n = fun2 n == fun2' n
 
---------------------
--- Binary tree
---------------------
+-----------------------------
+-- Exercise 2: Binary tree
+-----------------------------
 
 -- A Tree of a's. Integer is the height of tree.
 data Tree a = Leaf
@@ -127,7 +127,36 @@ numNodes (Node _ l _ r) = (numNodes l) + (numNodes r) + 1
 --     'H'
 --     (Node 1 (Node 0 Leaf 'Y' Leaf) 'D' Leaf))
 --
---     
--- 
--- 
+
+-----------------------------
+-- Exercise 3: More folds
+-----------------------------
+
+
+xor :: [Bool] -> Bool
+xor xs = foldl (\acc x -> if x then not acc else acc) False xs
+
+map' :: (a -> b) -> [a] -> [b]
+map' f = foldr (\x acc -> (f x):acc) []
+
+-----------------------------
+-- Exercise 4: Finding primes
+-----------------------------
+
+-- Implement myFoldl using only foldr
+--
+-- Strategy: composed functions right-to-left to be applied left-to-right. We
+-- foldr a composed function, named comp. This composed function will eventually
+-- take in the true accumulator (base, of type b), and return another b.
+--
+-- Similar to composing transducers in Clojure.
+--
+-- We begin with the `id` function, or (\acc -> acc).
+--
+myFoldl :: (a -> b -> a) -> a -> [b] -> a
+myFoldl f base xs = (foldr (\x comp -> (\acc -> (f (comp acc) x))) id xs) base
+
+-- Tests:
+--
+-- foldl (\acc x -> acc + x) 0 [1..10] == myFoldl (\acc x -> acc + x) 0 [1..10]
 
