@@ -139,10 +139,6 @@ xor xs = foldl (\acc x -> if x then not acc else acc) False xs
 map' :: (a -> b) -> [a] -> [b]
 map' f = foldr (\x acc -> (f x):acc) []
 
------------------------------
--- Exercise 4: Finding primes
------------------------------
-
 -- Implement myFoldl using only foldr
 --
 -- Strategy: composed functions right-to-left to be applied left-to-right. We
@@ -159,4 +155,58 @@ myFoldl f base xs = (foldr (\x comp -> (\acc -> (f (comp acc) x))) id xs) base
 -- Tests:
 --
 -- foldl (\acc x -> acc + x) 0 [1..10] == myFoldl (\acc x -> acc + x) 0 [1..10]
+
+-----------------------------
+-- Exercise 4: Finding primes
+-----------------------------
+
+cartProd :: [a] -> [b] -> [(a, b)]
+cartProd xs ys = [(x, y) | x <- xs, y <- ys]
+
+-- Generate all odd prime numbers up to 2n + 2.
+--
+-- Strategy: Generate list of numbers to sieve out.
+-- Then, for each number 0 to n: If the number is in the sieve list, remove it
+-- from the sieve list, and don't add it to the primes list. If the number is
+-- NOT in the sieve list, then 2x+1 to find the prime number.
+-- Alternative strategy, make a list of primes backwards, and reverse it at the
+-- end.
+
+sieveSundaram :: Integer -> [Integer]
+sieveSundaram n = reverse $ snd $
+  foldl
+    (\(remaining, primes) x ->
+      if x `elem` remaining
+      then (Data.List.delete x remaining, primes)
+      else (remaining, (2*x+1):primes))
+  (sieve n, [])
+  [1..n]
+
+sieve :: Integer -> [Integer]
+sieve n = [i + j + 2*i*j | i <- [0..n], j <- [0..n], 1 <= i && i <= j && i+j+(2*i*j) <= n]
+
+-- Alternative strategy, does it backwards than the one above. There's a bug
+-- with the sieve' method, because it spits out non-prime numbers.
+
+sieveSundaram' :: Integer -> [Integer]
+sieveSundaram' n = snd $
+  foldr
+    (\x (remaining, primes) ->
+      if x `elem` remaining
+      then (Data.List.delete x remaining, primes)
+      else (remaining, (2*x+1):primes))
+  (sieve' n, [])
+  [1..n]
+
+-- Return numbers to be sieved out of list, starting from highest number.
+--
+-- maxN is (n-1)/3, which is an optimization. We need to keep the invariant
+-- i+j+2ij <= n and 1 <= i <= j. So to find the largest value of j possible,
+-- assume i is 1. That means (i + j + 2ij) = (1 + j + 3j) = 3j + 1 <= n. Which
+-- means j <= (n-1)/3. Hence why we start j there.
+sieve' :: Integer -> [Integer]
+sieve' n = let maxN = (n - 1) `div` 3
+          in [i + j + 2*i*j | i <- [maxN,maxN-1..1],
+                              j <- [i,i-1..1],
+                              1 <= i && i <= j && i+j+(2*i*j) <= n]
 
