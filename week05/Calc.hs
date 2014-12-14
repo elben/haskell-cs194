@@ -6,6 +6,7 @@ module Calc where
 import ExprT
 import Parser
 import qualified StackVM
+import qualified Data.Map.Strict as M
 
 ------------------
 -- Exercise 1
@@ -133,5 +134,48 @@ run s = case compile s of
 ------------------
 -- Exercise 6
 ------------------
+
+class HasVars a where
+  var :: String -> a
+
+data VarExprT = VarLit Integer
+              | Var String
+              | VarAdd VarExprT VarExprT
+              | VarMul VarExprT VarExprT
+  deriving (Show, Eq)
+
+instance HasVars VarExprT where
+  var v = Var v
+
+instance Expr VarExprT where
+  lit x = VarLit x
+  add x y = VarAdd x y
+  mul x y = VarMul x y
+
+-- The HasVars and Exprs implementations below make sort of a continuation,
+-- where the var mapping is threaded into the calculations. We basically form a
+-- giant lambda that awaits the mapping, and once the mapping is given, the
+-- functions are evoked and the values retrieved and calculated.
+
+instance HasVars (M.Map String Integer -> Maybe Integer) where
+  var v = \mapping -> M.lookup v mapping
+
+instance Expr (M.Map String Integer -> Maybe Integer) where
+  lit x = \_ -> Just x
+  add x y = \m -> case (x m) of
+                    Nothing -> Nothing
+                    Just xn -> case (y m) of
+                      Nothing -> Nothing
+                      Just yn -> Just (xn + yn)
+  mul x y = \m -> case (x m) of
+                    Nothing -> Nothing
+                    Just xn -> case (y m) of
+                      Nothing -> Nothing
+                      Just yn -> Just (xn * yn)
+
+withVars :: [(String, Integer)]
+         -> (M.Map String Integer -> Maybe Integer)
+         -> Maybe Integer
+withVars vs expr = expr $ M.fromList vs
 
 
