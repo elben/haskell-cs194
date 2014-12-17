@@ -152,6 +152,10 @@ instance Expr VarExprT where
   add x y = VarAdd x y
   mul x y = VarMul x y
 
+-- Examples:
+--
+--  add (lit 3) (var "x") :: VarExprT
+
 -- The HasVars and Exprs implementations below make sort of a continuation,
 -- where the var mapping is threaded into the calculations. We basically form a
 -- giant lambda that awaits the mapping, and once the mapping is given, the
@@ -177,5 +181,23 @@ withVars :: [(String, Integer)]
          -> (M.Map String Integer -> Maybe Integer)
          -> Maybe Integer
 withVars vs expr = expr $ M.fromList vs
+
+-- Examples:
+--
+-- :t add (lit 3) (var "x")
+-- Returns: add (lit 3) (var "x") :: (Expr a, HasVars a) => a
+-- Which says, that expression is of any type a, where a implements Expr and
+-- HasVars.
+-- 
+-- In the examples below, we replace the type var 'a' (above) with an explicit
+-- type, namely (M.Map String Integer -> Maybe Integer). And since we've
+-- implemented the type classes HasVars and Expr for (M.Map String Integer ->
+-- Maybe Integer), the program can run.
+--
+-- withVars [("x", 6)] $ add (lit 3) (var "x")
+--
+-- withVars [("x", 6)] $ add (lit 3) (var "y")
+--
+-- withVars [("x", 6), ("y", 3)] $ mul (var "x") (add (var "y") (var "x"))
 
 
