@@ -188,7 +188,7 @@ withVars vs expr = expr $ M.fromList vs
 -- Returns: add (lit 3) (var "x") :: (Expr a, HasVars a) => a
 -- Which says, that expression is of any type a, where a implements Expr and
 -- HasVars.
--- 
+--
 -- In the examples below, we replace the type var 'a' (above) with an explicit
 -- type, namely (M.Map String Integer -> Maybe Integer). And since we've
 -- implemented the type classes HasVars and Expr for (M.Map String Integer ->

@@ -41,11 +41,9 @@ foldTree as = foldr insertTree
 
 insertTree :: a -> Tree a -> Tree a
 insertTree a Leaf = Node 0 Leaf a Leaf
-
 -- If L is a leaf (R presumably a Leaf, since we always try L first), insert left.
 -- We have to add a new node, so height increases.
 insertTree a (Node h Leaf p r) = Node (h+1) (Node 0 Leaf a Leaf) p r
-
 -- If L is a node, and R is a leaf, insert right. Don't increase height, since L
 -- already has a node.
 insertTree a (Node h l p Leaf) = Node h l p (Node 0 Leaf a Leaf)
@@ -79,7 +77,7 @@ numNodes (Node _ l _ r) = (numNodes l) + (numNodes r) + 1
 -- Tests
 -- foldTree "FGHIJ"
 -- foldTree "EFGHIJ"
--- 
+--
 --
 -- foldTree "ABCDEFGHIJ"
 --
