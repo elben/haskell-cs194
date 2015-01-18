@@ -8,6 +8,7 @@ import Data.Char
 import Data.Monoid
 import Data.List (foldl')
 
+
 -- Building block of a computation with some state of type @s@
 -- threaded through it, possibly resulting in a value of type @r@
 -- along with some updated state.
