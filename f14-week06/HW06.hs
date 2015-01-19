@@ -5,14 +5,10 @@ module HW06 where
 import Data.Aeson
 import Data.Monoid
 import GHC.Generics
-import Data.HashMap.Strict
 
 import qualified Data.ByteString.Lazy.Char8 as B
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-
-iterateHashMap :: HashMap T.Text Value -> HashMap T.Text Value
-iterateHashMap hm = fmap ynToBool hm
 
 -- Converts "Y" to True, "N" to False
 ynToBool :: Value -> Value
@@ -62,13 +58,7 @@ data Market = Market { marketname :: T.Text,
 instance FromJSON Market
 
 
-getResult :: Result a -> a
-getResult (Success a) = a
-
 parseMarkets :: B.ByteString -> Either String [Market]
--- parseMarkets bs = fmap getResult (fmap fromJSON (parseData bs))
--- Above uses Functors, which makes it equivalent to:
---
 parseMarkets bs = case parseData bs of
   Left s -> Left s
   Right v -> case fromJSON v of
@@ -84,4 +74,55 @@ loadData = do
 
 -- In GHCi:
 --
--- markets <- loadData
+-- mkts <- loadData
+
+data OrdList a = OrdList { getOrdList :: [a] }
+  deriving (Eq, Show)
+
+-- Zips two lists together in ordered style (e.g. merge part of merge-sort).
+-- Assumes given lists are ordered.
+--
+-- Example:
+--
+-- zipOrdered [2, 4, 6, 10] [1, 3, 5, 7, 9]
+-- [1,2,3,4,5,6,7,9,10]
+--
+zipOrdered :: Ord a => [a] -> [a] -> [a]
+zipOrdered [] [] = []
+zipOrdered (u:us) [] = u : zipOrdered us []
+zipOrdered [] (v:vs) = v : zipOrdered [] vs
+zipOrdered (u:us) (v:vs)
+  | u <= v    = u : zipOrdered us (v:vs)
+  | otherwise = v : zipOrdered (u:us) vs
+
+-- We're making a Monoid instance for OrdList a, where a is a type that has an
+-- Ord instance (is orderable). So, an ordered list of orderable things.
+instance Ord a => Monoid (OrdList a) where
+  -- mempty :: m
+  mempty = OrdList { getOrdList = [] }
+
+  -- mappend :: m -> m -> m
+  mappend m1 m2 = OrdList { getOrdList = zipOrdered (getOrdList m1) (getOrdList m2) }
+
+  -- mconcat :: [a] -> a, fold a list using monoid
+  -- Use default implementation.
+
+type Searcher m = T.Text -> [Market] -> m
+
+search :: Monoid m => (Market -> m) -> Searcher m
+search f t mkts = mconcat (foldl (\ms m -> if (T.isInfixOf t (marketname m))
+                                           then (f m):ms
+                                           else ms)
+                           [] mkts)
+
+-- Examples:
+--
+-- Sum count of markets (Note that Sum 1 tells us to use the Sum monoid for
+-- ints):
+--
+-- search (\_ -> (Sum 1)) T.empty mkts
+-- search (\_ -> (Sum 1)) (T.pack "Farmer")  mkts
+
+marketWithName :: Market -> (T.Text, Market)
+marketWithName mkt@(Market { marketname = name }) = (name, mkt)
+
