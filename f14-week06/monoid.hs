@@ -4,8 +4,8 @@ module MonoidFun where
 
 import Data.Monoid
 import Data.Foldable
-import Control.Monad.Writer
-import Control.Monad.State
+-- import Control.Monad.Writer
+-- import Control.Monad.State
 
 
 data Tree a = Empty
@@ -15,7 +15,7 @@ data Tree a = Empty
 instance Foldable Tree where
   foldMap _ Empty = mempty
   foldMap f (Leaf x) = f x
-  foldMap f (Node l x r) = (foldMap f r) `mappend` (f x) `mappend` (foldMap f l)
+  foldMap f (Node l x r) = foldMap f r `mappend` f x `mappend` foldMap f l
 
 tree :: Tree Integer
 tree = Node (Leaf 1) 7 (Node (Leaf 100) 2 (Leaf (-3)))
@@ -53,4 +53,7 @@ maxtest :: Max
 maxtest = Max 3
 
 ex3 :: Max
-ex3 = foldMap (\n -> (Max n)) tree
+ex3 = foldMap Max tree
+-- Equivalent:
+-- ex3 = foldMap (\n -> Max n) tree
+
