@@ -213,6 +213,16 @@ successProb armies = do
   let wins = length $ filter (\as -> defenders as == 0) invasions
   return (wins // 1000)
 
+-- So from what I understand, the functions above are "recipies" that know how
+-- to handle a random number generator, once it's given. The main fun below
+-- finally gives it the rand number generation it's looking for through
+-- evalRandIO.
+--
+-- This is why certain functions are "stuck inside" the StdRand type class,
+-- because it needs a rand num generator. The StdRand monad, however, makes it
+-- easier for us to access the things inside the StdRand, like `armies`. Thus a
+-- monad is the mechanism for us to do the computation we need.
+
 main :: IO ()
 main = do
   values <- evalRandIO (invade (ArmyCounts 10 10))
