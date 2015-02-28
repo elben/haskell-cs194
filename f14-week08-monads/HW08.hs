@@ -102,7 +102,7 @@ allExamples = ex1 && ex2 && ex3 && ex4 && ex5 && ex6 && ex7 && ex8
 -- Risk, the game
 ----------------
 
--- Rand is the monad data type.
+-- Rand is the data type (with monad implementation).
 -- StdGen is the random number generator we want to use.
 type StdRand = Rand StdGen
 
@@ -126,6 +126,8 @@ dieRoll = getRandomR (1, 7)
 battleResults :: [DieRoll] -> [DieRoll] -> ArmyCounts
 battleResults as ds = battleResults' (L.sortBy (flip compare) as) (L.sortBy (flip compare) ds)
 
+-- Exercise 4
+
 -- Assumes [DieRoll] are sorted
 battleResults' :: [DieRoll] -> [DieRoll] -> ArmyCounts
 battleResults' (a:as) (d:ds)
@@ -146,6 +148,8 @@ maxAttackers armies = min (attackers armies) 3
 maxDefenders :: ArmyCounts -> Army
 maxDefenders armies = min (defenders armies) 2
 
+-- Exercise 5
+--
 -- One step in battle. Assumes player/defender will use max number of armies
 -- they can.
 --
@@ -170,6 +174,8 @@ battle armies = do
   dRolls <- replicateM (maxDefenders armies) dieRoll
 
   -- Return the ArmyCounts wrapped in the StdRand monad
+  --
+  -- <> is "mappend" from Monoid type class.
   return $ armies <> (battleResults aRolls dRolls)
 
 -- Monad:
@@ -179,6 +185,8 @@ battle armies = do
 -- Examples:
 --
 -- battle (ArmyCounts 10 10)
+
+-- Exercise 6
 
 invade :: ArmyCounts -> StdRand ArmyCounts
 invade armies
@@ -190,6 +198,30 @@ invade armies
   --   remaining <- (battle armies)
   --   invade remaining
 
+-- Exercise 7
+
+(//) :: Int -> Int -> Double
+a // b = fromIntegral a / fromIntegral b
+
+successProb :: ArmyCounts -> StdRand Double
+successProb armies = do
+  -- See above explanation of replicateM. Basically, invades 1000 times. The
+  -- Monad m is StdRand.
+  --
+  -- replicateM :: Monad m => Int -> m a -> m [a]
+  invasions <- replicateM 1000 (invade armies)
+  let wins = length $ filter (\as -> defenders as == 0) invasions
+  return (wins // 1000)
+
+main :: IO ()
 main = do
   values <- evalRandIO (invade (ArmyCounts 10 10))
-  putStrLn (show values)
+  print values -- Equiv: putStrLn (show values)
+  print "Chance of winning with 10 attackers against 10 defenders"
+  evalRandIO (successProb (ArmyCounts 10 10)) >>= print
+  print "Chance of winning with 100 attackers against 10 defenders"
+  evalRandIO (successProb (ArmyCounts 100 10)) >>= print
+  print "Chance of winning with 10 attackers against 100 defenders"
+  evalRandIO (successProb (ArmyCounts 10 100)) >>= print
+  print "Chance of winning with 50 attackers against 50 defenders"
+  evalRandIO (successProb (ArmyCounts 50 50)) >>= print
