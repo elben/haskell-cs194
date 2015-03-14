@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="io">I/O</h1>
+<p>CIS 194 Week 6 2 October 2014</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Prelude</span> <span class="kw">hiding</span> ( <span class="dt">Functor</span>(..) )   <span class="co">-- we define this ourselves, below</span></code></pre>
+<h2 id="further-reading">Further reading</h2>
+<p><a href="http://book.realworldhaskell.org/read/io.html">Real World Haskell, Chapter 7</a> <a href="http://learnyouahaskell.com/input-and-output">Learn You a Haskell, Chapter 9</a></p>
+<h2 id="the-problem-with-purity">The problem with purity</h2>
+<p>Remember that Haskell is <em>pure</em>. This means two primary things:</p>
+<ol style="list-style-type: decimal">
+<li><p>Functions may not have any external effects. For example, a function may not print anything on the screen. Functions may only compute their outputs.</p></li>
+<li><p>Functions may not depend on external stuff. For example, they may not read from the keyboard, or filesystem, or network. Functions may depend only on their inputs—put another way, functions should give the same output for the same input every time.</p></li>
+</ol>
+<p>But—sometimes we <em>do</em> want to be able to do stuff like this! If the only thing we could do with Haskell is write functions which we can then evaluate at the ghci prompt, it would be theoretically interesting but practically useless.</p>
+<p>In fact, it <em>is</em> possible to do these sorts of things with Haskell, but it looks very different than in most other languages.</p>
+<h2 id="the-io-type">The <code>IO</code> type</h2>
+<p>The solution to the conundrum is a special type called <code>IO</code>. Values of type <code>IO a</code> are <em>descriptions of</em> effectful computations, which, if executed would (possibly) perform some effectful I/O operations and (eventually) produce a value of type <code>a</code>. There is a level of indirection here that’s crucial to understand. A value of type <code>IO a</code>, <em>in and of itself</em>, is just an inert, perfectly safe thing with no effects. It is just a <em>description</em> of an effectful computation. One way to think of it is as a <em>first-class imperative program</em>.</p>
+<p>As an illustration, suppose you have</p>
+<pre><code>c :: Cake
+</code></pre>
+<p>What do you have? Why, a delicious cake, of course. Plain and simple.</p>
+<p>By contrast, suppose you have</p>
+<pre><code>r :: Recipe Cake
+</code></pre>
+<p>What do you have? A cake? No, you have some <em>instructions</em> for how to make a cake, just a sheet of paper with some writing on it.</p>
+<p>Not only do you not actually have a cake, merely being in possession of the recipe has no effect on anything else whatsoever. Simply holding the recipe in your hand does not cause your oven to get hot or flour to be spilled all over your floor or anything of that sort. To actually produce a cake, the recipe must be <em>followed</em> (causing flour to be spilled, ingredients mixed, the oven to get hot, <em>etc.</em>).</p>
+<p>In the same way, a value of type <code>IO a</code> is just a “recipe” for producing a value of type <code>a</code> (and possibly having some effects along the way). Like any other value, it can be passed as an argument, returned as the output of a function, stored in a data structure, or (as we will see shortly) combined with other <code>IO</code> values into more complex recipes.</p>
+<p>So, how do values of type <code>IO a</code> actually ever get executed? There is only one way: the Haskell compiler looks for a special value</p>
+<pre><code>main :: IO ()
+</code></pre>
+<p>which will actually get handed to the runtime system and executed. That’s it! Think of the Haskell runtime system as a master chef who is the only one allowed to do any cooking.</p>
+<p>If you want your recipe to be followed then you had better make it part of the big recipe (<code>main</code>) that gets handed to the master chef. Of course, <code>main</code> can be arbitrarily complicated, and will usually be composed of many smaller <code>IO</code> computations.</p>
+<p>So let’s write our first actual, executable Haskell program! We can use the function</p>
+<pre><code>putStrLn :: String -&gt; IO ()
+</code></pre>
+<p>which, given a <code>String</code>, returns an <code>IO</code> computation that will (when executed) print out that <code>String</code> on the screen. So we simply put this in a file called <code>Hello.hs</code>:</p>
+<pre><code>main = putStrLn &quot;Hello, Haskell!&quot;
+</code></pre>
+<p>Then typing <code>runhaskell Hello.hs</code> at a command-line prompt results in our message getting printed to the screen! We can also use <code>ghc --make Hello.hs</code> to produce an executable version called <code>Hello</code> (or <code>Hello.exe</code> on Windows).</p>
+<p>GHC looks for a module named <code>Main</code> to find the <code>main</code> action. If you omit a module header on a Haskell file, the module name defaults to <code>Main</code>, so this often works out, even if the filename is not <code>Main.hs</code>. If you wish to use a module name other than <code>Main</code>, you have to use a command-line option when calling <code>ghc</code> or <code>runhaskell</code>. Say you have a file <code>Something.hs</code> that looks like</p>
+<pre><code>module Something where
+main :: IO ()
+main = putStrLn &quot;Hi out there!&quot;
+</code></pre>
+<p>You can compile that with <code>ghc --make -main-is Something Something.hs</code>. Note the double dashes with <code>--make</code> but only a single dash with <code>-main-is</code>.</p>
+<h2 id="there-is-no-string-inside-an-io-string">There is no <code>String</code> “inside” an <code>IO String</code></h2>
+<p>Many new Haskell users end up at some point asking a question like “I have an <code>IO String</code>, how do I turn it into a <code>String</code>?”, or, “How do I get the <code>String</code> out of an <code>IO String</code>”? Given the above intuition, it should be clear that these are nonsensical questions: a value of type <code>IO String</code> is a description of some computation, a <em>recipe</em>, for generating a <code>String</code>. There is no <code>String</code> “inside” an <code>IO String</code>, any more than there is a cake “inside” a cake recipe. To produce a <code>String</code> (or a delicious cake) requires actually <em>executing</em> the computation (or recipe). And the only way to do that is to give it (perhaps as part of some larger <code>IO</code> value) to the Haskell runtime system, via <code>main</code>.</p>
+<h2 id="sequencing-io-actions">Sequencing <code>IO</code> actions</h2>
+<p>It would all be a little silly if a Haskell program could do only one thing – the thing in the <code>main</code> action. We need a way of doing one thing and then the next. Haskell provides a special notation for sequencing actions, called <code>do</code> notation. <code>do</code> notation is actually very powerful and can be used for wondrous things beyond sequencing I/O actions, but its full power is a story for another day (perhaps several other days).</p>
+<p>Here is an action that uses <code>do</code> notation to accomplish very little. I’m not naming it <code>main</code>, so it can only be accessed from within GHCi, but that’s OK for our purposes.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">sillyExchange ::</span> <span class="dt">IO</span> ()
+sillyExchange <span class="fu">=</span> <span class="kw">do</span>
+  putStrLn <span class="st">&quot;Hello, user!&quot;</span>
+  putStrLn <span class="st">&quot;What is your name?&quot;</span>
+  name <span class="ot">&lt;-</span> getLine
+  putStrLn <span class="fu">$</span> <span class="st">&quot;Pleased to meet you, &quot;</span> <span class="fu">++</span> name <span class="fu">++</span> <span class="st">&quot;!&quot;</span></code></pre>
+<h2 id="io-types"><code>IO</code> types</h2>
+<p>Before unpacking that example, it’s helpful to look at some types. (Gee, in Haskell, it’s <em>always</em> helpful to look at some types.)</p>
+<p>First, let’s start with <code>()</code>. The <code>()</code> type is pronounced “unit” and has one value, <code>()</code>. It’s as if it was declared with</p>
+<pre><code>data () = ()
+</code></pre>
+<p>though that’s not valid Haskell syntax. <code>()</code> is a pretty silly type at first: it conveys absolutely no information, because it has only one constructor that takes no arguments. But, that’s exactly what we need in certain I/O actions: <code>sillyExchange</code> is an I/O action that produces no (interesting) value at the end. Haskell insists that it has to produce <em>something</em>, so we say it produces <code>()</code>. (If you squint at <code>()</code>, it looks a little like <code>void</code> from C/C++ or Java.)</p>
+<p>Here are some types:</p>
+<pre><code>putStrLn :: String -&gt; IO ()
+getLine  :: IO String
+</code></pre>
+<p>We’ve seen uses of <code>putStrLn</code> before. When sequencing actions with <code>do</code> notation, each “bare” line (lines that don’t have a <code>&lt;-</code> in them) must have type <code>IO ()</code>. Happily, <code>putStrLn &quot;foo&quot;</code> indeed has type <code>IO ()</code>. These actions get performed in order when processing a <code>do</code> block.</p>
+<p><code>getLine</code>, on the other hand, has type <code>IO String</code>. That means that <code>getLine</code> is an action that produces a <code>String</code>. To get the <code>String</code> out of <code>getLine</code>, we use <code>&lt;-</code> to bind a new variable <code>name</code> to that <code>String</code>. Here’s the catch: you can do this <em>only</em> in a <code>do</code> block defining an <code>IO</code> action. There’s no useful way to run <code>getLine</code> in code that’s not part of an <code>IO</code> action. Trying to do this is like getting the cake out of the cake recipe – it’s very silly indeed.</p>
+<p>It’s important to note that <code>name &lt;- getLine</code> does not have a type; that is not a Haskell expression. It’s just part of the syntax of <code>do</code> notation. You can’t include <code>name &lt;- getLine</code> as part of some larger expression, only as a line in a <code>do</code> block.</p>
+<h2 id="a-slightly-larger-example">A slightly larger example</h2>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">jabber ::</span> <span class="dt">IO</span> ()
+jabber <span class="fu">=</span> <span class="kw">do</span>
+  wocky <span class="ot">&lt;-</span> readFile <span class="st">&quot;jabberwocky.txt&quot;</span>
+  <span class="kw">let</span> wockylines <span class="fu">=</span> drop <span class="dv">2</span> (lines wocky)  <span class="co">-- discard title</span>
+  count <span class="ot">&lt;-</span> printFirstLines wockylines
+  putStrLn <span class="fu">$</span> <span class="st">&quot;There are &quot;</span> <span class="fu">++</span> show count <span class="fu">++</span> <span class="st">&quot; stanzas in Jabberwocky.&quot;</span>
+
+<span class="ot">printFirstLines ::</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Int</span>
+printFirstLines ls <span class="fu">=</span> <span class="kw">do</span>
+  <span class="kw">let</span> first_lines <span class="fu">=</span> extractFirstLines ls
+  putStr (unlines first_lines)
+  return <span class="fu">$</span> length first_lines
+
+<span class="ot">extractFirstLines ::</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]
+extractFirstLines []         <span class="fu">=</span> []
+extractFirstLines [_]        <span class="fu">=</span> []
+extractFirstLines (<span class="st">&quot;&quot;</span> <span class="fu">:</span> first <span class="fu">:</span> rest)
+  <span class="fu">=</span> first <span class="fu">:</span> extractFirstLines rest
+extractFirstLines (_ <span class="fu">:</span> rest) <span class="fu">=</span> extractFirstLines rest</code></pre>
+<p>There’s a bunch of interesting things in there:</p>
+<ol style="list-style-type: decimal">
+<li><p><code>readFile :: FilePath -&gt; IO String</code>, where <code>type FilePath = String</code>. This function reads in the entire contents of a file into a <code>String</code>.</p></li>
+<li><p><code>let</code> statements within <code>do</code> blocks. It would be awfully silly if all of the pure programming we have covered were unusable from within <code>do</code> blocks. The <code>let</code> statement in a <code>do</code> block allows you to create a new variable bound to a <em>pure</em> value. Note the lack of <code>in</code>. Remember that when you say <code>let x = y</code>, <code>a</code> and <code>b</code> have the same types. When you say <code>x &lt;- y</code>, <code>y</code> has to have a type like <code>IO a</code>, and then <code>x</code> has type <code>a</code>.</p></li>
+<li><p><code>return :: a -&gt; IO a</code>. If you need to turn a pure value into an I/O action, use <code>return</code>. <code>return</code> is a regular old function in Haskell. It is <em>not</em> the same as <code>return</code> in C/C++ or Java! Within an I/O action, <code>let x = y</code> is the same as <code>x &lt;- return y</code>, but the former is vastly preferred: it makes the purity of <code>y</code> more obvious.</p></li>
+</ol>
+<p>There are many functions that you can use to do I/O. See the family of modules starting with <code>System.</code>, and in particular, <code>System.IO</code>.</p>
+<h1 id="monoids">Monoids</h1>
+<p>Consider some type <code>m</code> and an operation <code>(&lt;&gt;) :: m -&gt; m -&gt; m</code>. The type and operation form a <em>monoid</em> when</p>
+<ol style="list-style-type: decimal">
+<li><p>there exists a particular element <code>mempty :: m</code> such that <code>x &lt;&gt; mempty == x</code> and <code>mempty &lt;&gt; x == x</code>; and</p></li>
+<li><p>the operation <code>(&lt;&gt;)</code> is associative. That is, <code>(a &lt;&gt; b) &lt;&gt; c ==</code>a &lt;&gt; (b &lt;&gt; c)`.</p></li>
+</ol>
+<p>Monoids are actually a mathematical concept, but they are ubiquitous in programming. This is true in all languages, but we make their presence in Haskell much more explicit, through the use of a type class:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Monoid</span> m <span class="kw">where</span>
+<span class="ot">  mempty  ::</span> m
+<span class="ot">  mappend ::</span> m <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> m
+
+<span class="ot">  mconcat ::</span> [m] <span class="ot">-&gt;</span> m     <span class="co">-- this can be omitted from Monoid instances</span>
+  mconcat []     <span class="fu">=</span> mempty
+  mconcat (x<span class="fu">:</span>xs) <span class="fu">=</span> x <span class="ot">`mappend`</span> mconcat xs
+
+<span class="ot">(&lt;&gt;) ::</span> <span class="dt">Monoid</span> m <span class="ot">=&gt;</span> m <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> m    <span class="co">-- infix operator for convenience</span>
+(<span class="fu">&lt;&gt;</span>) <span class="fu">=</span> mappend</code></pre>
+<p>There are a great many <code>Monoid</code> instances available. Perhaps the easiest one is for lists:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Monoid</span> [a] <span class="kw">where</span>
+  mempty  <span class="fu">=</span> []
+  mappend <span class="fu">=</span> (<span class="fu">++</span>)</code></pre>
+<p>Monoids are useful whenever an operation has to combine results, but there may be, in general, multiple different types of results and multiple different ways of combining the results. For example, say we are interested in the positive integers less than 100 that are divisible by 5 or 7, but not both. We can write a function that accumulates these in a monoid:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- this is not the most efficient!</span>
+<span class="ot">intInts ::</span> <span class="dt">Monoid</span> m <span class="ot">=&gt;</span> (<span class="dt">Integer</span> <span class="ot">-&gt;</span> m) <span class="ot">-&gt;</span> m   <span class="co">-- interesting ints!</span>
+intInts mk_m <span class="fu">=</span> go [<span class="dv">1</span><span class="fu">..</span><span class="dv">100</span>]   <span class="co">-- [1..100] is the list of numbers from 1 to 100</span>
+  <span class="kw">where</span> go [] <span class="fu">=</span> mempty
+        go (n<span class="fu">:</span>ns)
+          <span class="fu">|</span> <span class="kw">let</span> div_by_5 <span class="fu">=</span> n <span class="ot">`mod`</span> <span class="dv">5</span> <span class="fu">==</span> <span class="dv">0</span>
+                div_by_7 <span class="fu">=</span> n <span class="ot">`mod`</span> <span class="dv">7</span> <span class="fu">==</span> <span class="dv">0</span>
+          , (div_by_5 <span class="fu">||</span> div_by_7) <span class="fu">&amp;&amp;</span> (not (div_by_5 <span class="fu">&amp;&amp;</span> div_by_7))
+          <span class="fu">=</span> mk_m n <span class="fu">&lt;&gt;</span> go ns
+          <span class="fu">|</span> otherwise
+          <span class="fu">=</span> go ns</code></pre>
+<p>The <code>mk_m</code> parameter converts an <code>Integer</code> into whatever monoid the caller wants. The recursive <code>go</code> function then combines all the results according to the monoid operation.</p>
+<p>Here, we can get these results as a list:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">intIntsList ::</span> [<span class="dt">Integer</span>]
+intIntsList <span class="fu">=</span> intInts (<span class="fu">:</span>[])</code></pre>
+<p>The <code>(:[])</code> is just a section, applying the cons operator <code>:</code> to the empty list. It is the same as <code>(\x -&gt; [x])</code>. <code>(:[])</code> is sometimes pronounced “robot”.</p>
+<p>Suppose we want to combine the numbers as a product, instead of as a list. You might be tempted to say</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">intIntsProduct ::</span> <span class="dt">Integer</span>
+intIntsProduct <span class="fu">=</span> intInts id</code></pre>
+<p>(Recall that <code>id :: a -&gt; a</code>.) That doesn’t work, because there is no <code>Monoid</code> instance for <code>Integer</code>, and for good reason. There are <em>several</em> ways one might want to combine numbers monoidically. Instead of choosing one of these ways to be the <code>Monoid</code> instance, Haskell defines no <code>Monoid</code> instance. Instead, the <code>Data.Monoid</code> module exports two “wrappers” for numbers, with appropriate <code>Monoid</code> instances. Here is one:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Product</span> a <span class="fu">=</span> <span class="dt">Product</span> a
+<span class="kw">instance</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">Product</span> a) <span class="kw">where</span>
+  mempty                          <span class="fu">=</span> <span class="dt">Product</span> <span class="dv">1</span>
+  mappend (<span class="dt">Product</span> x) (<span class="dt">Product</span> y) <span class="fu">=</span> <span class="dt">Product</span> (x <span class="fu">*</span> y)
+
+<span class="ot">getProduct ::</span> <span class="dt">Product</span> a <span class="ot">-&gt;</span> a
+getProduct (<span class="dt">Product</span> x) <span class="fu">=</span> x</code></pre>
+<p>Now, we can take the product of the interesting integers:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">intIntsProduct ::</span> <span class="dt">Integer</span>
+intIntsProduct <span class="fu">=</span> getProduct <span class="fu">$</span> intInts <span class="dt">Product</span></code></pre>
+<p>We still do have to explicit wrap (with <code>Product</code>) and unwrap (with <code>getProduct</code>).</p>
+<p>The idiom we see with <code>Product</code> is quite common when working with type classes. Because you can define only one instance of a class per type, we use this trick to effectively differentiate among instances.</p>
+<p>Check out the documentation for the <code>Data.Monoid</code> module to see more of these wrappers.</p>
+<h1 id="functor">Functor</h1>
+<p>There is one last type class you should learn about, <code>Functor</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Functor</span> f <span class="kw">where</span>
+<span class="ot">  fmap ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b</code></pre>
+<p>It may be helpful to see some instances before we pick the definition apart:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Functor</span> [] <span class="kw">where</span>
+  fmap <span class="fu">=</span> map
+
+<span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Maybe</span> <span class="kw">where</span>
+  fmap _ <span class="dt">Nothing</span>  <span class="fu">=</span> <span class="dt">Nothing</span>
+  fmap f (<span class="dt">Just</span> x) <span class="fu">=</span> <span class="dt">Just</span> (f x)</code></pre>
+<p>Note that the type argument to <code>Functor</code> is not quite a type: it’s a <em>type constructor</em>. (Or, equivalently, <code>f</code> has kind <code>* -&gt; *</code>.) That’s why we make instances for <code>[]</code> (the list type) and <code>Maybe</code>, not, say, for <code>[Int]</code> or <code>Maybe Bool</code>. <code>fmap</code> takes a normal function and “lifts” it into the <code>Functor</code> type. For lists, this is just the <code>map</code> operation; for <code>Maybe</code>, the function affects the <code>Just</code> constructor but leaves <code>Nothing</code> well enough alone.</p>
+<p>You can think of functors as being containers, where it is possible to twiddle the contained bits. The <code>fmap</code> operation allows you access to the contained bits, <em>without</em> affecting the container. One of the key properties of <code>fmap</code> is that <code>fmap id == id</code>. That is, if you don’t change the elements of the container (<code>id</code> does nothing, recall), then you haven’t changed anything. For example, a binary tree might have a <code>Functor</code> instance. You can <code>fmap</code> to change the data in the tree, but the tree shape itself would stay the same.</p>
+<p>(Note that you wouldn’t want to do this with a binary <em>search</em> tree, because <code>fmap</code>ing might change the ordering relationship among elements, and your tree would no longer satisfy the binary search tree invariants.)</p>
+<p>When dealing with containers that you know nothing about, a <code>Functor</code> instance is often all you need to make progress. (<em>Hint:</em> This will happen on HW06!)</p>
+<h1 id="record-syntax">Record syntax</h1>
+<p><em>This material was not covered in lecture, but is provided as an extra resource for completing homework 6.</em></p>
+<p>Suppose we have a data type such as</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">D</span> <span class="fu">=</span> <span class="dt">C</span> <span class="dt">T1</span> <span class="dt">T2</span> <span class="dt">T3</span></code></pre>
+<p>We could also declare this data type with <em>record syntax</em> as follows:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">D</span> <span class="fu">=</span> <span class="dt">C</span> {<span class="ot"> field1 ::</span> <span class="dt">T1</span>,<span class="ot"> field2 ::</span> <span class="dt">T2</span>,<span class="ot"> field3 ::</span> <span class="dt">T3</span> }</code></pre>
+<p>where we specify not just a type but also a <em>name</em> for each field stored inside the <code>C</code> constructor. This new version of <code>D</code> can be used in all the same ways as the old version (in particular we can still construct and pattern-match on values of type <code>D</code> as <code>C v1 v2 v3</code>). However, we get some additional benefits.</p>
+<ol style="list-style-type: decimal">
+<li><p>Each field name is automatically a <em>projection function</em> which gets the value of that field out of a value of type <code>D</code>. For example, <code>field2</code> is a function of type</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">field2 ::</span> <span class="dt">D</span> <span class="ot">-&gt;</span> <span class="dt">T2</span></code></pre>
+<p>Before, we would have had to implement <code>field2</code> ourselves by writing</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">field2 (<span class="dt">C</span> _ f _) <span class="fu">=</span> f</code></pre>
+<p>This gets rid of a lot of boilerplate if we have a data type with many fields!</p></li>
+<li><p>There is special syntax for <em>constructing</em>, <em>modifying</em>, and <em>pattern-matching</em> on values of type <code>D</code> (in addition to the usual syntax for such things).</p>
+<p>We can <em>construct</em> a value of type <code>D</code> using syntax like</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="dt">C</span> { field3 <span class="fu">=</span> <span class="fu">...</span>, field1 <span class="fu">=</span> <span class="fu">...</span>, field2 <span class="fu">=</span> <span class="fu">...</span> }</code></pre>
+<p>with the <code>...</code> filled in by expressions of the right type. Note that we can specify the fields in any order.</p>
+<p>Suppose we have a value <code>d :: D</code>. We can <em>modify</em> <code>d</code> using syntax like</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">d { field3 <span class="fu">=</span> <span class="fu">...</span> }</code></pre>
+<p>Of course, by “modify” we don’t mean actually mutating <code>d</code>, but rather constructing a new value of type <code>D</code> which is the same as <code>d</code> except with the <code>field3</code> field replaced by the given value.</p>
+<p>Finally, we can <em>pattern-match</em> on values of type <code>D</code> like so:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">foo (<span class="dt">C</span> { field1 <span class="fu">=</span> x }) <span class="fu">=</span> <span class="fu">...</span> x <span class="fu">...</span></code></pre>
+<p>This matches only on the <code>field1</code> field from the <code>D</code> value, calling it <code>x</code> (of course, in place of <code>x</code> we could also put an arbitrary pattern), ignoring the other fields.</p></li>
+</ol>
+<hr />
+<p><code>Generated 2014-12-04 13:37:43.406044</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

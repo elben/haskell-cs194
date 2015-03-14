@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="testing">Testing</h1>
+<p>CIS 194 Week 09<br />30 October 2014</p>
+<p>Suggested reading:</p>
+<ul>
+<li><a href="http://book.realworldhaskell.org/read/testing-and-quality-assurance.html">RWH Chapter 11: Testing and Quality Assurance</a>, but note that the QuickCheck library’s interface has evolved a bit since this was written</li>
+<li>[HUnit 1.0 User’s Guide](http://www.haskell.org/haskellwiki/HUnit_1.0_User’s_Guide)</li>
+</ul>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE RankNTypes #-}</span>
+<span class="kw">import </span><span class="dt">Test.QuickCheck</span>
+<span class="kw">import </span><span class="dt">Test.HUnit</span>
+<span class="kw">import </span><span class="dt">Data.List</span>
+<span class="kw">import </span><span class="dt">Control.Monad</span></code></pre>
+<h2 id="unit-tests">Unit tests</h2>
+<p>Let’s say I want to merge two sorted lists.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- | Assuming the input lists are sorted, combine the lists into a</span>
+<span class="co">-- sorted output.</span>
+<span class="ot">merge1 ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]
+merge1 (x<span class="fu">:</span>xs) (y<span class="fu">:</span>ys)
+  <span class="fu">|</span> x <span class="fu">&lt;</span> y     <span class="fu">=</span> x <span class="fu">:</span> merge1 xs ys
+  <span class="fu">|</span> otherwise <span class="fu">=</span> y <span class="fu">:</span> merge1 xs ys
+merge1 _      _      <span class="fu">=</span> []</code></pre>
+<p>Does this function work as expected? I could run a few tries in GHCi, but that’s a little unsatisfactory: I have to do the work to think up a test, but I get to use it only once. Instead, it’s much better to write the test in my file, and that way I can re-run it every time I update my merge function.</p>
+<p>HUnit and QuickCheck both provide ways of testing our programs. They both focus on <em>unit testing</em>, where one small part of a program is scrutinized, looking for problems. The idea is that if all the small parts of a program work, then it is more likely that all the parts together will work. Testing a whole program is called <em>integration testing</em>. HUnit and QuickCheck are both capable of integration testing, though sometimes it’s harder to use these tools in that setting. Today, we’ll focus on using these tools only for unit testing.</p>
+<p>HUnit gives us the ability to run a function against a certain input and to observe whether or not it produces the desired output. Let’s do this for <code>merge1</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">test1_merge1 ::</span> <span class="dt">Test</span>
+test1_merge1 <span class="fu">=</span> <span class="st">&quot;alternating numbers: [1,3,5] [2,4,6]&quot;</span> <span class="fu">~:</span>
+               merge1 [<span class="dv">1</span>,<span class="dv">3</span>,<span class="dv">5</span>] [<span class="dv">2</span>,<span class="dv">4</span>,<span class="dv">6</span>] <span class="fu">~?=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>]</code></pre>
+<p>Before unpacking that line, let’s run the test with <code>runTestTT</code> to see what happens:</p>
+<pre><code>*Main&gt; runTestTT test1_merge1
+### Failure in: &quot;alternating numbers: [1,3,5] [2,4,6]&quot;
+expected: [1,2,3,4,5,6]
+ but got: [1,3,5]
+Cases: 1  Tried: 1  Errors: 0  Failures: 1
+Counts {cases = 1, tried = 1, errors = 0, failures = 1}
+</code></pre>
+<p>Oh. The function’s wrong. What a surprise.</p>
+<p>Happily, the output is quite helpful, though. It tells us the name of the test, what was expected, and what actually happened. There is also a summary at the bottom, in case we had run many tests, only some of which failed.</p>
+<p>Now, let’s unpack what’s going on. We’ll start, as usual, with the types:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">(~?=) ::</span> (<span class="dt">Show</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Test</span>
+<span class="ot">(~:) ::</span> <span class="dt">Testable</span> t <span class="ot">=&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Test</span>
+<span class="ot">runTestTT ::</span> <span class="dt">Test</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Counts</span></code></pre>
+<p>The <code>(~?=)</code> operator builds a <code>Test</code> by comparing the equality of its two operands, which must be <code>Show</code>able. That’s perfect for our needs: on one side, we put the call to the function we’re testing, and on the other side, we put the desired output. By convention, HUnit testing operators put a <code>?</code> toward the side where the failure might occur – that’s how HUnit knew which value was expected and which was the actual result. HUnit also provides <code>(~=?)</code> which swaps the arguments (but has the same type, as the types don’t capture the distinction between actual and expected).</p>
+<p>The <code>(~:)</code> operator serves only to label <code>Test</code>s with a string describing the test. Because HUnit supports a few different ways to build tests, <code>(~:)</code>’s type allows any type in the <code>Testable</code> class; <code>Test</code> is surely <code>Testable</code> (as you can see in HUnit’s documentation). The test above would have worked without the use of <code>(~:)</code>, but the output would be less helpful. Also, note that <code>(~?=)</code> has a higher precedence than <code>(~:)</code>, meaning that we don’t need parentheses. (You can query the precedence of an operator in GHCi. If I say <code>:info ~:</code>, I get <code>infixr 0 ~:</code>, which means that <code>(~:)</code> associates to the right with the lowest possible precedence.</p>
+<p>Finally, <code>runTestTT</code> is the function that runs tests and produces output. It also returns a <code>Counts</code> object, which is printed in the last line of the GHCi transcript above – it contains a summary of the testing that can then be operated on programmatically, if <code>runTestTT</code> is called from a larger program’s <code>main</code> action.</p>
+<p>** The <code>Test</code> type **</p>
+<p>HUnit actually exports the details of its <code>Test</code> type:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Test</span>
+  <span class="fu">=</span> <span class="dt">TestCase</span> <span class="dt">Assertion</span>
+  <span class="fu">|</span> <span class="dt">TestList</span> [<span class="dt">Test</span>]
+  <span class="fu">|</span> <span class="dt">TestLabel</span> <span class="dt">String</span> <span class="dt">Test</span></code></pre>
+<p>You can build up tests using these constructors. (See the documentation for more information about <code>Assertion</code>.) The only one that tends to get used is <code>TestList</code>, which conveniently builds up a master test from many sub-tests.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">test2_merge1 ::</span> <span class="dt">Test</span>
+test2_merge1 <span class="fu">=</span> <span class="dt">TestList</span> [ <span class="st">&quot;one element: [1] []&quot;</span> <span class="fu">~:</span>
+                          merge1 [<span class="dv">1</span>] [] <span class="fu">~?=</span> [<span class="dv">1</span>]
+                        , test1_merge1 ]</code></pre>
+<pre><code>*Main&gt; runTestTT test2_merge1
+### Failure in: 0:&quot;one element: [1] []&quot;
+expected: [1]
+ but got: []
+### Failure in: 1:&quot;alternating numbers: [1,3,5] [2,4,6]&quot;
+expected: [1,2,3,4,5,6]
+ but got: [1,3,5]
+Cases: 2  Tried: 2  Errors: 0  Failures: 2
+Counts {cases = 2, tried = 2, errors = 0, failures = 2}
+</code></pre>
+<p>That’s nice, helpful output. Not only does it give us names, it gives us locations within the list of tests.</p>
+<p>HUnit has a bunch more stuff that can be useful. Read its documentation.</p>
+<p>Before we go on fixing <code>merge</code>, it’s helpful to generalize the tests, so we can run them on <em>any</em> merge function, not just <code>merge1</code> in particular. You won’t generally need to do this in your tests, but it’s a nice example of functional programming.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">type</span> <span class="dt">MergeFun</span> <span class="fu">=</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]
+<span class="ot">test2 ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> <span class="dt">Test</span>
+test2 merge <span class="fu">=</span> <span class="dt">TestList</span> [ <span class="st">&quot;one element: [1] []&quot;</span> <span class="fu">~:</span>
+                         merge [<span class="dv">1</span>] [] <span class="fu">~?=</span> [<span class="dv">1</span>]
+                       , <span class="st">&quot;alternating numbers: [1,3,5] [2,4,6]&quot;</span> <span class="fu">~:</span>
+                         merge [<span class="dv">1</span>,<span class="dv">3</span>,<span class="dv">5</span>] [<span class="dv">2</span>,<span class="dv">4</span>,<span class="dv">6</span>] <span class="fu">~?=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>]
+                       ]</code></pre>
+<p>OK. Now let’s make a better job at merge. It seems we forgot to include the greater of the two elements when comparing.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">merge2 ::</span> <span class="dt">MergeFun</span>
+merge2 all_xs<span class="fu">@</span>(x<span class="fu">:</span>xs) all_ys<span class="fu">@</span>(y<span class="fu">:</span>ys)
+  <span class="fu">|</span> x <span class="fu">&lt;</span> y     <span class="fu">=</span> x <span class="fu">:</span> merge2 xs all_ys
+  <span class="fu">|</span> otherwise <span class="fu">=</span> y <span class="fu">:</span> merge2 all_xs ys
+merge2 _             _             <span class="fu">=</span> []</code></pre>
+<pre><code>*Main&gt; runTestTT (test2 merge2)
+### Failure in: 0:&quot;one element: [1] []&quot;
+expected: [1]
+ but got: []
+### Failure in: 1:&quot;alternating numbers: [1,3,5] [2,4,6]&quot;
+expected: [1,2,3,4,5,6]
+ but got: [1,2,3,4,5]
+Cases: 2  Tried: 2  Errors: 0  Failures: 2
+Counts {cases = 2, tried = 2, errors = 0, failures = 2}
+</code></pre>
+<p>This is better (?). Now we’re not dropping everything, but it doesn’t seem to work once one of the lists is exhausted. Let’s take yet another stab:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">merge3 ::</span> <span class="dt">MergeFun</span>
+merge3 all_xs<span class="fu">@</span>(x<span class="fu">:</span>xs) all_ys<span class="fu">@</span>(y<span class="fu">:</span>ys)
+  <span class="fu">|</span> x <span class="fu">&lt;</span> y     <span class="fu">=</span> x <span class="fu">:</span> merge3 all_ys xs
+  <span class="fu">|</span> otherwise <span class="fu">=</span> y <span class="fu">:</span> merge3 all_xs ys
+merge3 xs            []            <span class="fu">=</span> xs
+merge3 _             _             <span class="fu">=</span> []</code></pre>
+<pre><code>*Main&gt; runTestTT (test2 merge3)
+Cases: 2  Tried: 2  Errors: 0  Failures: 0
+Counts {cases = 2, tried = 2, errors = 0, failures = 0}
+</code></pre>
+<p>Huzzah!</p>
+<p>Let’s add another test:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">test3 ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> <span class="dt">Test</span>
+test3 merge <span class="fu">=</span> <span class="st">&quot;empty lists: [] []&quot;</span> <span class="fu">~:</span>
+              merge [] [] <span class="fu">~?=</span> []</code></pre>
+<pre><code>*Main&gt; :load &quot;09-testing.lec.lhs&quot;
+[1 of 1] Compiling Main             ( 09-testing.lec.lhs, interpreted )
+
+/Users/rae/work/cis194/haskell/weeks/09-testing/09-testing.lec.lhs:194:17:
+    No instance for (Ord a0) arising from a use of ‘merge’
+    The type variable ‘a0’ is ambiguous
+    Note: there are several potential instances:
+      instance Integral a =&gt; Ord (GHC.Real.Ratio a)
+        -- Defined in ‘GHC.Real’
+      instance Ord Integer -- Defined in ‘integer-gmp:GHC.Integer.Type’
+      instance Ord time-1.4.2:Data.Time.LocalTime.LocalTime.LocalTime
+        -- Defined in ‘time-1.4.2:Data.Time.LocalTime.LocalTime’
+      ...plus 28 others
+    In the first argument of ‘(~?=)’, namely ‘merge [] []’
+    In the second argument of ‘(~:)’, namely ‘merge [] [] ~?= []’
+    In the expression: &quot;empty lists: [] []&quot; ~: merge [] [] ~?= []
+
+/Users/rae/work/cis194/haskell/weeks/09-testing/09-testing.lec.lhs:194:29:
+    No instance for (Show a0) arising from a use of ‘~?=’
+    The type variable ‘a0’ is ambiguous
+    Note: there are several potential instances:
+      instance Show Double -- Defined in ‘GHC.Float’
+      instance Show Float -- Defined in ‘GHC.Float’
+      instance (Integral a, Show a) =&gt; Show (GHC.Real.Ratio a)
+        -- Defined in ‘GHC.Real’
+      ...plus 39 others
+    In the second argument of ‘(~:)’, namely ‘merge [] [] ~?= []’
+    In the expression: &quot;empty lists: [] []&quot; ~: merge [] [] ~?= []
+    In an equation for ‘test3’:
+        test3 merge = &quot;empty lists: [] []&quot; ~: merge [] [] ~?= []
+Failed, modules loaded: none.
+</code></pre>
+<p>Yuck! What’s going on here? The problem is that GHC cannot figure out what type we want for our empty lists. The <code>Show</code> and <code>Ord</code> instances very much care what type we choose, so GHC doesn’t want to choose for us. We need to add a type annotation to fix the problem:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">test3 ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> <span class="dt">Test</span>
+test3 merge <span class="fu">=</span> <span class="st">&quot;empty lists: [] []&quot;</span> <span class="fu">~:</span>
+              merge [] [] <span class="fu">~?=</span> ([]<span class="ot"> ::</span> [<span class="dt">Integer</span>])</code></pre>
+<p>The <code>:: [Integer]</code> chooses the type for us, so GHC knows what to do.</p>
+<p>Are we done? Is our function perfect?</p>
+<h2 id="property-based-testing">Property-based testing</h2>
+<p>Writing test cases is boring. And, it’s easy to miss out on unexpected behavior. Much better (and, more along the lines of <em>wholemeal programming</em>) is to define <em>properties</em> we wish our function to have. Then, we can get the computer to generate the test cases for us.</p>
+<p>QuickCheck is the standard Haskell library for property-based testing. The ides is that you define a so-called <em>property</em>, which is then tested using pseudo-random data.</p>
+<p>For example:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">prop_numElements_merge3 ::</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+prop_numElements_merge3 xs ys
+  <span class="fu">=</span> length xs <span class="fu">+</span> length ys <span class="fu">==</span> length (merge3 xs ys)</code></pre>
+<p>This property is saying that the sum of the lengths of the input lists should be the same as the length of the output list. (It is customary to begin property names with <code>prop_</code>.) Let’s try it!</p>
+<pre><code>*Main&gt; quickCheck prop_numElements_merge3
+*** Failed! Falsifiable (after 5 tests and 4 shrinks): 
+[]
+[0]
+</code></pre>
+<p>(Your results may differ slightly. Remember: it’s using randomness.)</p>
+<p>The first thing we notice is that our function is clearly wrong, with lots of stars and even an exclamation point! We then see that QuickCheck got through 5 tests before discovering the failing test case, so our function isn’t terrible. QuickCheck tells us what the failing arguments are: <code>[]</code> and <code>[0]</code>. Indeed GHCi tells us that <code>merge3 [] [0]</code> is <code>[]</code>, which is wrong.</p>
+<p>What’s so nice here is that QuickCheck found us such a nice, small test case to show that our function is wrong. The way it can do so is that it uses a technique called <em>shrinking</em>. After QuickCheck finds a test case that causes failure, it tries successively smaller and smaller arguments (according to a customizable definition of “smaller”) that keep failing. QuickCheck then reports only the smallest failing test case. This is wonderful, because otherwise the test cases QuickCheck produces would be unwieldy and hard to reason about.</p>
+<p>A final note about this property is that the type signature tells us that the property takes lists of integers, not any type <code>a</code>. This is so that GHC doesn’t choose a silly type to test on, such as <code>()</code>. We must always be careful about this when writing properties of polymorphic functions. Numbers are almost always a good choice.</p>
+<p>** Implications **</p>
+<p>As we did above, let’s generalize our test over implementations of our merging operation. Again, you likely won’t need to do this.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">prop_numElements ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+prop_numElements merge xs ys
+  <span class="fu">=</span> length xs <span class="fu">+</span> length ys <span class="fu">==</span> length (merge xs ys)</code></pre>
+<p>And, we take another stab at our function:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">merge4 ::</span> <span class="dt">MergeFun</span>
+merge4 all_xs<span class="fu">@</span>(x<span class="fu">:</span>xs) all_ys<span class="fu">@</span>(y<span class="fu">:</span>ys)
+  <span class="fu">|</span> x <span class="fu">&lt;</span> y     <span class="fu">=</span> x <span class="fu">:</span> merge4 xs all_ys
+  <span class="fu">|</span> otherwise <span class="fu">=</span> y <span class="fu">:</span> merge4 all_xs ys
+merge4 xs            ys            <span class="fu">=</span> xs <span class="fu">++</span> ys</code></pre>
+<pre><code>*Main&gt; quickCheck (prop_numElements merge4)
++++ OK, passed 100 tests.
+</code></pre>
+<p>Huzzah!</p>
+<p>Is that it? Are we done? Not quite. Let’s try another property:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">prop_sorted1 ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+prop_sorted1 merge xs ys
+  <span class="fu">=</span> merge xs ys <span class="fu">==</span> sort (xs <span class="fu">++</span> ys)</code></pre>
+<pre><code>*Main&gt; quickCheck (prop_sorted1 merge4)
+*** Failed! Falsifiable (after 4 tests and 3 shrinks): 
+[]
+[1,0]
+</code></pre>
+<p>Drat. QuickCheck quite reasonably tried the list <code>[1,0]</code> as an input to our function. Of course, this isn’t going to work because it’s not already sorted. We need to specify an implication property:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">prop_sorted2 ::</span> <span class="dt">MergeFun</span> <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> [<span class="dt">Integer</span>] <span class="ot">-&gt;</span> <span class="dt">Property</span>
+prop_sorted2 merge xs ys
+  <span class="fu">=</span> isSorted xs <span class="fu">&amp;&amp;</span> isSorted ys <span class="fu">==&gt;</span> merge xs ys <span class="fu">==</span> sort (xs <span class="fu">++</span> ys)
+
+<span class="ot">isSorted ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+isSorted (a<span class="fu">:</span>b<span class="fu">:</span>rest) <span class="fu">=</span> a <span class="fu">&lt;=</span> b <span class="fu">&amp;&amp;</span> isSorted (b<span class="fu">:</span>rest)
+isSorted _          <span class="fu">=</span> <span class="dt">True</span>    <span class="co">-- must be fewer than 2 elements</span></code></pre>
+<p>In <code>prop_sorted</code>, we see the use of the operator <code>(==&gt;)</code>. Its type is <code>Testable prop =&gt; Bool -&gt; prop -&gt; Property</code>. (This is a <em>different</em> <code>Testable</code> than HUnit’s.) It takes a <code>Bool</code> and a <code>Testable</code> thing and produces a <code>Property</code>. Note how <code>prop_sorted</code> returns a <code>Property</code>, not a <code>Bool</code>. We’ll sort these types out fully later, but I wanted to draw your attention to the appearance of <code>Property</code> there.</p>
+<p>Let’s see how this works:</p>
+<pre><code>*Main&gt; quickCheck (prop_sorted2 merge4)
+*** Gave up! Passed only 21 tests.
+</code></pre>
+<p>(And that took maybe 20 seconds.) There aren’t any failures, but there aren’t a lot of successes either. The problem is that QuickCheck will run the test only when both randomly-generated lists are in sorted order. The odds that a randomly-generated list of length <code>n</code> is sorted is <code>1/n!</code>, which is generally quite small odds. And we need <em>two</em> sorted lists. This isn’t going to work out well.</p>
+<p>** QuickCheck’s types **</p>
+<p>How does QuickCheck generate the arbitrary test cases, anyway? It uses the <code>Arbitrary</code> class:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Arbitrary</span> a <span class="kw">where</span>
+<span class="ot">  arbitrary ::</span> <span class="dt">Gen</span> a
+<span class="ot">  shrink    ::</span> a <span class="ot">-&gt;</span> [a]</code></pre>
+<p>We’ll leave <code>shrink</code> to the online documentation and focus on <code>arbitrary</code>. The <code>arbitrary</code> method gives us a <code>Gen a</code> – a generator for the type <code>a</code>. Of course, the <code>arbitrary</code> method for lists doesn’t care about ordering (indeed, it can’t, due to parametricity), but we do. Luckily, this is a common problem, and QuickCheck offers a solution in the form of <code>OrderedList</code>, a wrapper around lists that have the right <code>Arbitrary</code> instance for our needs:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">newtype</span> <span class="dt">OrderedList</span> a <span class="fu">=</span> <span class="dt">Ordered</span> {<span class="ot"> getOrdered ::</span> [a] }
+<span class="kw">instance</span> (<span class="dt">Ord</span> a, <span class="dt">Arbitrary</span> a) <span class="ot">=&gt;</span> <span class="dt">Arbitrary</span> (<span class="dt">OrderedList</span> a) <span class="kw">where</span> <span class="fu">...</span></code></pre>
+<p>(<code>newtype</code> is almost just like <code>data</code>. Poke around online for more info.)</p>
+<p>Now, let’s rewrite our property:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">prop_sorted3 ::</span> <span class="dt">MergeFun</span>
+             <span class="ot">-&gt;</span> <span class="dt">OrderedList</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">OrderedList</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+prop_sorted3 merge (<span class="dt">Ordered</span> xs) (<span class="dt">Ordered</span> ys)
+  <span class="fu">=</span> merge xs ys <span class="fu">==</span> sort (xs <span class="fu">++</span> ys)</code></pre>
+<pre><code>*Main&gt; quickCheck (prop_sorted3 merge4)
++++ OK, passed 100 tests.
+</code></pre>
+<p>Huzzah! Just by changing the types a bit, we can affect instance selection to get what we want.</p>
+<p>Yet, this all seems like black magic. How does QuickCheck do it? Let’s look more in depth at the types.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">quickCheck ::</span> <span class="dt">Testable</span> prop <span class="ot">=&gt;</span> prop <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+
+<span class="kw">class</span> <span class="dt">Testable</span> prop <span class="kw">where</span> <span class="fu">...</span>
+<span class="kw">instance</span> <span class="dt">Testable</span> <span class="dt">Bool</span> <span class="kw">where</span> <span class="fu">...</span>
+<span class="kw">instance</span> <span class="dt">Testable</span> <span class="dt">Property</span> <span class="kw">where</span> <span class="fu">...</span>
+<span class="kw">instance</span> (<span class="dt">Arbitrary</span> a, <span class="dt">Show</span> a, <span class="dt">Testable</span> prop) <span class="ot">=&gt;</span> <span class="dt">Testable</span> (a <span class="ot">-&gt;</span> prop) <span class="kw">where</span> <span class="fu">...</span></code></pre>
+<p>We can <code>quickCheck</code> anything that’s <code>Testable</code>. Boolean values are <code>Testable</code>, as are the somewhat mysterious <code>Property</code>s. But it’s the last instance listed here of <code>Testable</code> that piques our curiosity. It says that a <em>function</em> is <code>Testable</code> as long as its argument has an <code>arbitrary</code> method, the argument can be printed (in case of failure), and the result is <code>Testable</code>.</p>
+<p>Is <code>[Integer] -&gt; [Integer] -&gt; Bool</code> <code>Testable</code>? Sure it is. Recall that <code>[Integer] -&gt; [Integer] -&gt; Bool</code> is equivalent to <code>[Integer] -&gt; ([Integer] -&gt; Bool)</code>. Because <code>[Integer]</code> has both an <code>Arbitrary</code> instance and a <code>Show</code> instance, we can use the last instance above as long as <code>[Integer] -&gt; Bool</code> is <code>Testable</code>. And that’s <code>Testable</code> because we (still) have an <code>Arbitrary</code> and a <code>Show</code> instance for <code>[Integer]</code>, and <code>Bool</code> is <code>Testable</code>. So, that’s how <code>quickCheck</code> works – it uses the <code>Arbitrary</code> instances for the argument types. And, that’s how changing the argument types to <code>OrderedList Integer</code> got us the result we wanted.</p>
+<p>** Generating arbitrary data **</p>
+<p>When you want to use QuickCheck over your own datatypes, it is necessary to write an <code>Arbitrary</code> instance for them. Here, we’ll learn how to do so.</p>
+<p>Let’s say we have a custom list type</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">MyList</span> a <span class="fu">=</span> <span class="dt">Nil</span> <span class="fu">|</span> <span class="dt">Cons</span> a (<span class="dt">MyList</span> a)
+
+<span class="kw">instance</span> <span class="dt">Show</span> a <span class="ot">=&gt;</span> <span class="dt">Show</span> (<span class="dt">MyList</span> a) <span class="kw">where</span>
+  show <span class="fu">=</span> show <span class="fu">.</span> toList
+  
+<span class="ot">toList ::</span> <span class="dt">MyList</span> a <span class="ot">-&gt;</span> [a]
+toList <span class="dt">Nil</span>           <span class="fu">=</span> []
+toList (a <span class="ot">`Cons`</span> as) <span class="fu">=</span> a <span class="fu">:</span> toList as
+
+<span class="ot">fromList ::</span> [a] <span class="ot">-&gt;</span> <span class="dt">MyList</span> a
+fromList []     <span class="fu">=</span> <span class="dt">Nil</span>
+fromList (a<span class="fu">:</span>as) <span class="fu">=</span> a <span class="ot">`Cons`</span> fromList as</code></pre>
+<p>If we want an <code>Arbitrary</code> instance, we must define the <code>arbitrary</code> method, of type <code>Gen (MyList a)</code>. Luckily for us, <code>Gen</code> is a monad (did you see that coming?), so some of its details are already familiar. We also realize that if we want arbitrary lists of <code>a</code>, we’ll need to make arbitrary <code>a</code>s. So, our instance looks like</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Arbitrary</span> a <span class="ot">=&gt;</span> <span class="dt">Arbitrary</span> (<span class="dt">MyList</span> a) <span class="kw">where</span>
+  arbitrary <span class="fu">=</span> genMyList1 </code></pre>
+<p>At this point, it’s helpful to check out the combinators available in the “Generator combinators” section of the <a href="http://hackage.haskell.org/package/QuickCheck-2.7.6/docs/Test-QuickCheck.html">QuickCheck documentation</a>.</p>
+<p>At this point, it’s helpful to think about how you, as a human, would generate an arbitrary list. One way to do it is to choose an arbitrary length (say, between 0 and 10), and then choose each element arbitrarily. Here is an implementation:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">genMyList1 ::</span> <span class="dt">Arbitrary</span> a <span class="ot">=&gt;</span> <span class="dt">Gen</span> (<span class="dt">MyList</span> a)
+genMyList1 <span class="fu">=</span> <span class="kw">do</span>
+  len <span class="ot">&lt;-</span> choose (<span class="dv">0</span>, <span class="dv">10</span>)
+  vals <span class="ot">&lt;-</span> replicateM len arbitrary
+  return <span class="fu">$</span> fromList vals</code></pre>
+<p>Let’s try it out:</p>
+<pre><code>*Main&gt; sample genMyList1
+[(),(),(),(),(),()]
+[]
+[(),(),(),(),(),(),(),(),()]
+[(),(),(),(),(),()]
+[(),(),(),(),(),(),(),(),()]
+[()]
+[(),(),(),(),(),(),(),()]
+[(),(),(),(),(),(),(),(),()]
+[(),(),()]
+[(),(),(),(),(),()]
+[(),(),(),(),(),(),(),(),(),()]
+</code></pre>
+<p>The arbitrary lengths are working, but the element generation sure is boring. Let’s use a type annotation to spruce things up (and override GHC’s default choice of <code>()</code>)!</p>
+<pre><code>*Main&gt; sample (genMyList1 :: Gen (MyList Integer))
+[0,0,0,0,0,0,0,0,0,0]
+[]
+[-2,3,1,0,4,-1]
+[-5,0,2,1,-1,-3]
+[-5,-6,-7,-2,-8,7,-3,4,-6]
+[4,-3,-3,2,-9,9]
+[]
+[10,-1]
+[9,-7,-16,3,15]
+[0,14,-1,0]
+[3,18,-13,-17,-20,-8]
+</code></pre>
+<p>That’s better.</p>
+<p>This generation still isn’t great, though, because perhaps a function written over <code>MyList</code>s fails only for lists longer than 10. We’d like unbounded lengths. Here’s one way to do it:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">genMyList2 ::</span> <span class="dt">Arbitrary</span> a <span class="ot">=&gt;</span> <span class="dt">Gen</span> (<span class="dt">MyList</span> a)
+genMyList2 <span class="fu">=</span> <span class="kw">do</span>
+  make_nil <span class="ot">&lt;-</span> arbitrary
+  <span class="kw">if</span> make_nil    <span class="co">-- type inference tells GHC that make_nil should be a Bool</span>
+     <span class="kw">then</span> return <span class="dt">Nil</span>
+     <span class="kw">else</span> <span class="kw">do</span>
+       x <span class="ot">&lt;-</span> arbitrary
+       xs <span class="ot">&lt;-</span> genMyList2
+       return (x <span class="ot">`Cons`</span> xs)</code></pre>
+<pre><code>*Main&gt; sample (genMyList2 :: Gen (MyList Integer))
+[0,0,0,0,0,0]
+[]
+[3,-3]
+[]
+[]
+[-1,-1]
+[-10]
+[]
+[]
+[11]
+[-20,-14]
+</code></pre>
+<p>The lengths are unbounded (you’ll just have to trust me there), but we’re getting a <em>lot</em> of empty lists. This is because at every link in the list, there’s a 50% chance of producing <code>Nil</code>. That means that a list of length <code>n</code> will appear only one out of <code>2^n</code> times. So, lengths are unbounded, but very unlikely.</p>
+<p>The way to make progress here is to use the <code>sized</code> combinator. QuickCheck is set up to try “simple” arbitrary things before “complex” arbitrary things. The way it does this is using a size parameter, internal to the <code>Gen</code> monad. The more generating QuickCheck does, the higher this parameter gets. We want to use the size parameter to do our generation.</p>
+<p>Let’s look at the type of <code>sized</code>:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">sized ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Gen</span> a) <span class="ot">-&gt;</span> <span class="dt">Gen</span> a</code></pre>
+<p>An example is the best way of explaining how this works:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">genMyList3 ::</span> <span class="dt">Arbitrary</span> a <span class="ot">=&gt;</span> <span class="dt">Gen</span> (<span class="dt">MyList</span> a)
+genMyList3 <span class="fu">=</span> sized <span class="fu">$</span> \size <span class="ot">-&gt;</span> <span class="kw">do</span>
+  len <span class="ot">&lt;-</span> choose (<span class="dv">0</span>, size)
+  vals <span class="ot">&lt;-</span> replicateM len arbitrary
+  return <span class="fu">$</span> fromList vals</code></pre>
+<pre><code>*Main&gt; sample (genMyList3 :: Gen (MyList Integer))
+[]
+[-2]
+[-1,3,4]
+[-4,-2,1,-1]
+[]
+[]
+[12,3,11,0,3,-12,10,5,11,12]
+[-4,-8,-9,2,14,5,8,11,-1,7,11,-8,2,-6]
+[6,10,-5,15,6]
+[-3,-18,-4]
+[9,19,13,-19]
+</code></pre>
+<p>That worked nicely – the lists tend to get longer the later they appear. The idea is that <code>sized</code> takes a <em>continuation</em>: the thing to do with the size parameter. We just use a lambda function as the one argument to <code>sized</code>, where the lambda binds the <code>size</code> parameter, and then we can use it internally. If that’s too painful (say we just want to produce the size parameter, without using a continuation), you could always do something like this:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">getSize ::</span> <span class="dt">Gen</span> <span class="dt">Int</span>
+getSize <span class="fu">=</span> sized return</code></pre>
+<p>I’ll leave it to you to figure out how that works. Follow the types!</p>
+<p>As one last example, we can also choose arbitrary generators from a list based on frequency. Although the length method of <code>genMyList3</code> works well for lists, the following technique is much better for trees:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">genMyList4 ::</span> <span class="dt">Arbitrary</span> a <span class="ot">=&gt;</span> <span class="dt">Gen</span> (<span class="dt">MyList</span> a)
+genMyList4 <span class="fu">=</span> sized <span class="fu">$</span> \size <span class="ot">-&gt;</span> <span class="kw">do</span>
+  frequency [ (<span class="dv">1</span>, return <span class="dt">Nil</span>)
+            , (size, <span class="kw">do</span> x <span class="ot">&lt;-</span> arbitrary
+                        xs <span class="ot">&lt;-</span> <span class="co">{- resize (size - 1) -}</span> genMyList4
+                        return (x <span class="ot">`Cons`</span> xs) )]</code></pre>
+<pre><code>*Main&gt; sample (genMyList4 :: Gen (MyList Integer))
+[]
+[2,0]
+[4,0,-1]
+[-6,-2,3,-1,-1]
+[6,6]
+[2,2,2,6,6]
+[-6,-9,5,-5]
+[8,7,5,7,7,-1,-2,-1,-5,-3]
+[15,-12,14,13,-5,-10,-9,-8,-2]
+[12,-11,-8,6,-6,-4,11,11]
+[-7,1,-3,4,-3,-9,4,6,-2,10,-9,-7,5,7,1]
+</code></pre>
+<p>Let’s look at the type of <code>frequency</code>:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">frequency ::</span> [(<span class="dt">Int</span>, <span class="dt">Gen</span> a)] <span class="ot">-&gt;</span> <span class="dt">Gen</span> a</code></pre>
+<p>It takes a list of <code>(Int, Gen a)</code> pairs and produces a <code>Gen a</code>. The numbers in the list give the likelihood of choosing that element. Above, we fixed the frequency of <code>Nil</code> at 1, but let the likelihood of <code>Cons</code> vary according to the desired size. Then, in the recursive call to <code>genMyList4</code>, we used <code>resize</code> to lower the <code>size</code> parameter. Otherwise, it’s too likely to get a runaway list that goes on toward infinity.</p>
+<hr />
+<p><code>Generated 2014-12-04 13:37:46.63696</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

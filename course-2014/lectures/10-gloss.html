@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="gloss">Gloss</h1>
+<p>CIS 194 Week 10<br />5 November 2014</p>
+<p>Suggested reading:</p>
+<ul>
+<li><a href="https://hackage.haskell.org/package/gloss">The gloss Package</a></li>
+<li><a href="https://github.com/benl23x5/gloss">The gloss GitHub repo, with lots of examples</a></li>
+</ul>
+<p>Gloss is a popular library for graphics work in Haskell with a straightforward interface, and quite a few nice examples. As we are approaching the end of the semester, it’s time for you students to start spreading your wings and flying on your own, and working with Gloss is great practice. So, I leave you to the materials above.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Graphics.Gloss</span>
+<span class="kw">import </span><span class="dt">Data.Monoid</span>
+
+main <span class="fu">=</span> display (<span class="dt">InWindow</span> <span class="st">&quot;Hello, world!&quot;</span> (<span class="dv">200</span>, <span class="dv">200</span>) (<span class="dv">200</span>, <span class="dv">200</span>))
+               white
+               (circle <span class="dv">50</span> <span class="fu">&lt;&gt;</span>
+                (translate (<span class="fu">-</span><span class="dv">20</span>) <span class="dv">10</span>    <span class="fu">$</span> circle <span class="dv">10</span>) <span class="fu">&lt;&gt;</span>
+                (translate <span class="dv">20</span>    <span class="dv">10</span>    <span class="fu">$</span> circle <span class="dv">10</span>) <span class="fu">&lt;&gt;</span>
+                (translate <span class="dv">0</span>     (<span class="fu">-</span><span class="dv">15</span>) <span class="fu">$</span> scale <span class="dv">1</span> <span class="dv">0</span><span class="fu">.</span><span class="dv">7</span> <span class="fu">$</span> arc <span class="dv">180</span> <span class="dv">360</span> <span class="dv">20</span>))</code></pre>
+<hr />
+<p><code>Generated 2014-12-04 13:37:43.735912</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

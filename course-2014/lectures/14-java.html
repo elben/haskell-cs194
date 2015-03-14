@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <p>/*</p>
+<h1 id="haskell-meets-java">Haskell meets Java</h1>
+<p>CIS 194 Week 14 4 December 2014</p>
+<p>This week, we will explore the relationship of Haskell to Java, and, in the process, translate code back and forth between the two languages. In so doing, we will explore the more imperative features of Haskell (you <em>can</em> actually mutate variables, after all) and the more functional features of Java (you <em>can</em> actually write a monad in Java).</p>
+<p>Accordingly, this file is <em>both</em> a valid literate Haskell file and a valid Java file.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Control.Monad</span> ( when, liftM, guard )
+<span class="kw">import </span><span class="dt">Data.IORef</span>
+<span class="kw">import </span><span class="dt">Data.List</span>     ( stripPrefix )
+<span class="kw">import </span><span class="dt">Data.Maybe</span>    ( maybe, isJust )
+<span class="kw">import </span><span class="dt">Text.Read</span>     ( readMaybe )</code></pre>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+<span class="kw">import java.util.*;</span>
+<span class="kw">import java.util.function.*;</span>
+<span class="kw">import java.util.stream.*;</span>
+<span class="kw">public</span> <span class="kw">class</span> Lec
+{
+<span class="co">/*</span></code></pre>
+<h2 id="printing">Printing</h2>
+<p>Comparing a program as basic as printing “Hello, world!” is not terribly enlightening. Instead, we’ll start with a program that asks the user for a number and then prints out every number from 1 up to the provided number.</p>
+<p>First in idiomatic Haskell:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">printNums1 ::</span> <span class="dt">IO</span> ()
+printNums1 <span class="fu">=</span> <span class="kw">do</span>
+  putStr <span class="st">&quot;How high should I count? &quot;</span>
+  answerStr <span class="ot">&lt;-</span> getLine
+  <span class="kw">case</span> readMaybe answerStr <span class="kw">of</span>
+    <span class="dt">Nothing</span>  <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;Invalid entry. Please type a number.&quot;</span>
+    <span class="dt">Just</span> num <span class="ot">-&gt;</span> mapM_ print [<span class="dv">1</span><span class="fu">..</span>num]</code></pre>
+<p>And now, in idiomatic Java:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">printNums1</span>()
+  {
+    Scanner in = <span class="kw">new</span> Scanner(System.<span class="fu">in</span>);
+    
+    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    <span class="dt">int</span> answer = in.<span class="fu">nextInt</span>();
+    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt;= answer; i++)
+    {
+      System.<span class="fu">out</span>.<span class="fu">println</span>(i);
+    }
+    
+    in.<span class="fu">close</span>();
+  }
+<span class="co">/*</span></code></pre>
+<p>But, we can do better than that with a little error checking:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">printNums2</span>()
+  {
+    Scanner in = <span class="kw">new</span> Scanner(System.<span class="fu">in</span>);
+    
+    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    <span class="kw">if</span>(in.<span class="fu">hasNextInt</span>())
+    {
+      <span class="dt">int</span> answer = in.<span class="fu">nextInt</span>();
+      <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt;= answer; i++)
+      {
+        System.<span class="fu">out</span>.<span class="fu">println</span>(i);
+      }
+    }
+    <span class="kw">else</span>
+    {
+      in.<span class="fu">nextLine</span>();
+      System.<span class="fu">out</span>.<span class="fu">println</span>(<span class="st">&quot;Invalid entry. Please type a number.&quot;</span>);
+    }
+    
+    in.<span class="fu">close</span>();
+  }
+  
+<span class="co">/*</span></code></pre>
+<p>Note how easy it was to forget the error checking in Java! And, in truth, this doesn’t really work. If we call <code>printNum2()</code> two times in succession, we’ll see why. The problem is that <code>hasNextInt()</code> doesn’t consume any input. So, we could either manually gobble up the input or use exceptions.</p>
+<p>Instead of going down this road, though, let’s make the Java look more like the Haskell. The first step is to use Java’s <code>Optional</code> type (directly inspired by Haskell’s <code>Maybe</code> and OCaml’s <code>option</code>) to define a safe function to parse an integer:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+
+  <span class="co">// No typeclasses. We have to be specific to integers. :(</span>
+  <span class="kw">public</span> <span class="dt">static</span> Optional&lt;Integer&gt; <span class="fu">readMaybe</span>(String in)
+  {
+    <span class="kw">try</span> {
+      <span class="kw">return</span> Optional.<span class="fu">of</span>(Integer.<span class="fu">parseInt</span>(in));
+    } <span class="kw">catch</span>(NumberFormatException e) {
+      <span class="kw">return</span> Optional.<span class="fu">empty</span>();
+    }
+  }
+  
+<span class="co">/*</span></code></pre>
+<p>The <code>Integer.parseInt(String)</code> function throws the <code>NumberFormatException</code> when a parse fails. So, we just catch this exception and return <code>Optional.empty()</code> in that case. This should work nicely.</p>
+<p>Unfortunately, Java doesn’t provide a nice pattern-matching mechanism for its <code>Optional</code> type. But, it does provide this function:</p>
+<pre class="sourceCode java"><code class="sourceCode java"><span class="dt">void</span> <span class="fu">ifPresent</span>(Consumer&lt;? <span class="kw">super</span> T&gt; consumer)</code></pre>
+<p>What’s <code>Consumer</code>, you ask?</p>
+<pre class="sourceCode java"><code class="sourceCode java"><span class="fu">@FunctionalInterface</span>
+<span class="kw">public</span> <span class="kw">interface</span> Consumer&lt;T&gt;
+{
+  <span class="dt">void</span> <span class="fu">accept</span>(T t);
+  <span class="co">// ...</span>
+}</code></pre>
+<p><code>Consumer</code> is one of Java 8’s new <em>functional interfaces</em>. A functional interface is an interface with (roughly) one method. (There are various arcane rules around methods whoch overlap those from <code>Object</code> and other silly exceptions to the “one method” rule.) A <code>Consumer&lt;T&gt;</code> is a function that consumes <code>T</code> and produces nothing in response. In other words,</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> <span class="dt">Consumer</span> a <span class="fu">=</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+<span class="ot">ifPresent ::</span> <span class="dt">Optional</span> a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()) <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</code></pre>
+<p><strong>Haskell achievement unlocked!: You understand something in Haskell more easily than the equivalent Java!</strong></p>
+<p>Note how the Haskell equivalent to Java’s <code>Consumer</code> involves the <code>IO</code> monad. That’s because <em>everything</em> in Java must involve the <code>IO</code> monad – you can print, browse the Internet, and launch the missiles from anywhere in a Java program.</p>
+<p>You’ll see in the Java declaration for <code>ifPresent</code>, above, that there is a curious type <code>? super T</code>, whereas the Haskell equivalent seems to use just plain old <code>T</code> in that spot. (The “spot” is the second appearance of <code>a</code> in the Haskell type of <code>ifPresent</code>.) This difference has to do with Java’s subtyping relation. Haskell has no subtyping, so Haskellers don’t have to worry about this. And so, going forward, as Haskellers, we won’t worry about it.</p>
+<p>In our <code>printNums</code> example, though, we’ll need to take action even if the optional value <em>isn’t</em> present. <code>Optional</code> doesn’t provide the right combinator, so we’ll write it ourselves:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">public</span> <span class="dt">static</span> &lt;A, B&gt; B <span class="fu">maybe</span> ( B b
+                               , Function&lt;? <span class="kw">super</span> A, ? <span class="kw">extends</span> B&gt; f
+                               , Optional&lt;A&gt; optA )
+  {
+    <span class="kw">if</span> (optA.<span class="fu">isPresent</span>())
+    {
+      <span class="kw">return</span> f.<span class="fu">apply</span>(optA.<span class="fu">get</span>());
+    }
+    <span class="kw">else</span>
+    {
+      <span class="kw">return</span> b;
+    }
+  }
+<span class="co">/*</span></code></pre>
+<p>Writing that function makes me cringe, because my compiler isn’t checking that I’ve done a <code>isPresent()</code> check before using <code>get()</code>. But oh well. Happily, Haskell’s standard library provides the same combinator, called <code>maybe</code>.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">printNums3 ::</span> <span class="dt">IO</span> ()
+printNums3 <span class="fu">=</span> <span class="kw">do</span>
+  putStr <span class="st">&quot;How high should I count? &quot;</span>
+  answerStr <span class="ot">&lt;-</span> getLine
+  maybe (putStrLn <span class="st">&quot;Invalid entry. Please type a number.&quot;</span>)
+        (\num <span class="ot">-&gt;</span> mapM_ (putStrLn <span class="fu">.</span> show) [<span class="dv">1</span><span class="fu">..</span>num])
+        (readMaybe answerStr)</code></pre>
+<p>And now, the Java version:</p>
+<pre class="sourceCode java"><code class="sourceCode java">  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">printNums3</span>()
+  {
+    Scanner in = <span class="kw">new</span> Scanner(System.<span class="fu">in</span>);
+    
+    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    String answerStr = in.<span class="fu">nextLine</span>();
+    <span class="fu">maybe</span>( System.<span class="fu">out</span>.<span class="fu">println</span>(<span class="st">&quot;Invalid entry. Please type a number.&quot;</span>)
+         , num -&gt; {
+           <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt;= num; i++)
+           {      
+             System.<span class="fu">out</span>.<span class="fu">println</span>(i);
+           }
+         }
+         , <span class="fu">readMaybeInteger</span>(answerStr) );
+         
+    in.<span class="fu">close</span>();
+  }</code></pre>
+<p>Alas, that doesn’t compile, because Java can’t abstract over <code>void</code>! Let’s look at the type variables used in <code>maybe</code>. The two pieces passed in both result in <code>void</code>, but the type variable <code>B</code> can’t be <code>void</code> in Java. Furthermore, Java is an <em>eager</em> language, meaning that parameters to functions are evaluated before the function calls. Given this fact, the call to <code>System.out.println</code> in the <code>Nothing</code> case will happen <em>before</em> we check whether we have <code>Just</code> or <code>Nothing</code>. This is all wrong. We need to modify our combinator slightly to take two <em>functions</em>, so we can control their evaluation better. The function for the <code>Nothing</code> case takes no arguments and returns nothing, a use-case seemingly omitted from the <code>java.util.function</code> package, so we write it ourselves.</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="fu">@FunctionalInterface</span>
+  <span class="kw">public</span> <span class="kw">interface</span> Action  <span class="co">// in Haskell, this would be `IO ()`</span>
+  {
+    <span class="dt">void</span> <span class="fu">go</span>();
+  }
+  
+  <span class="kw">public</span> <span class="dt">static</span> &lt;A&gt; <span class="dt">void</span> <span class="fu">maybe2</span> ( Action nothingCase, Consumer&lt;A&gt; justCase
+                                , Optional&lt;A&gt; optA )
+  {
+    <span class="kw">if</span>(optA.<span class="fu">isPresent</span>())
+    {
+      justCase.<span class="fu">accept</span>(optA.<span class="fu">get</span>());
+    }
+    <span class="kw">else</span>
+    {
+      nothingCase.<span class="fu">go</span>();
+    }
+  }
+<span class="co">/*</span></code></pre>
+<p>Now, we’re ready to finish the translation to Java:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">printNums3</span>()
+  {
+    Scanner in = <span class="kw">new</span> Scanner(System.<span class="fu">in</span>);
+    
+    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    String answerStr = in.<span class="fu">nextLine</span>();
+    <span class="fu">maybe2</span>( () -&gt; System.<span class="fu">out</span>.<span class="fu">println</span>(<span class="st">&quot;Invalid entry. Please type a number.&quot;</span>)
+          , num -&gt; {
+            <span class="kw">for</span> (<span class="dt">int</span> i = <span class="dv">1</span>; i &lt;= num; i++)
+            {
+              System.<span class="fu">out</span>.<span class="fu">println</span>(i);
+            }
+          }
+          , <span class="fu">readMaybe</span>(answerStr) );
+    
+    in.<span class="fu">close</span>();
+  }
+<span class="co">/*</span></code></pre>
+<p>What have we gained here? More compile-time checking. Through the use of <code>readMaybe</code>, we now explicitly model the possibility of failure. And, through the use of the carefully-engineered <code>maybe2</code> combinator, we are sure to safely access the contents of the <code>Optional</code>. By consistently programming this way, our Java code will have fewer errors.</p>
+<p>Yet, there is still a small improvement: that <code>for</code> loop is really ugly in the middle of otherwise-functional code. Let’s get rid of it.</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">printNums4</span>()
+  {
+    Scanner in = <span class="kw">new</span> Scanner(System.<span class="fu">in</span>);
+    
+    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    String answerStr = in.<span class="fu">nextLine</span>();
+    <span class="fu">maybe2</span>( () -&gt; System.<span class="fu">out</span>.<span class="fu">println</span>(<span class="st">&quot;Invalid entry. Please type a number.&quot;</span>)
+          , num -&gt; IntStream.<span class="fu">rangeClosed</span>(<span class="dv">1</span>, num)
+                            .<span class="fu">forEach</span>(System.<span class="fu">out</span>::println)
+          , <span class="fu">readMaybe</span>(answerStr) );
+    
+    in.<span class="fu">close</span>();
+  }
+<span class="co">/*</span></code></pre>
+<p>Ah. That’s much better. :)</p>
+<p>Note the use of a <em>method reference</em> <code>System.out::println</code>, which passes a defined function as a functional interface parameter.</p>
+<h2 id="mutable-variables-in-haskell">Mutable variables in Haskell</h2>
+<p>The previous section iterated through a program, making a Java program more like Haskell. Now, we’ll take the opposite approach and make a Haskell program more like Java, exploring mutation in Haskell.</p>
+<p>Let’s remind ourselves of the interesting bits of the idiomatic Java program:</p>
+<pre class="sourceCode java"><code class="sourceCode java">    System.<span class="fu">out</span>.<span class="fu">print</span>(<span class="st">&quot;How high should I count? &quot;</span>);
+    <span class="dt">int</span> answer = in.<span class="fu">nextInt</span>();
+    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt;= answer; i++)
+    {
+      System.<span class="fu">out</span>.<span class="fu">println</span>(i);
+    }</code></pre>
+<p>To do this in Haskell, <code>for</code>-loop and all, we’ll need variable mutation. Haskell provides this facility in its <code>IORef</code>s, imported from <code>Data.IORef</code>. The key functions are</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">newIORef    ::</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">IORef</span> a)
+<span class="ot">readIORef   ::</span> <span class="dt">IORef</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> a
+<span class="ot">writeIORef  ::</span> <span class="dt">IORef</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+<span class="ot">modifyIORef ::</span> <span class="dt">IORef</span> a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> <span class="dt">IO</span> ()  <span class="co">-- more efficient than read+write</span></code></pre>
+<p>An <code>IORef</code> is just a mutable cell that can be read from and written to from within the <code>IO</code> monad. Using a monad is necessary because, for example, <code>readIORef</code> called on the same <code>IORef</code> may return different results at different times, depending on what’s in the mutable cell.</p>
+<p>We can write a <code>for</code>-loop in Haskell, but it’s a little clunky. Let’s see a cleaner solution first, in terms of <code>while</code>, which is much simpler. First, of course, we need to write <code>while</code>!</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">while ::</span> <span class="dt">IO</span> <span class="dt">Bool</span>   <span class="co">-- the condition</span>
+      <span class="ot">-&gt;</span> <span class="dt">IO</span> ()     <span class="co">-- the body</span>
+      <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+while cond body <span class="fu">=</span> <span class="kw">do</span>
+  b <span class="ot">&lt;-</span> cond
+  when b <span class="fu">$</span> <span class="kw">do</span>
+    body
+    while cond body</code></pre>
+<p>Then, writing the imperative Haskell version of <code>printNums</code> isn’t too hard. The monads make it a little clunky though.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">printNumsImp1 ::</span> <span class="dt">IO</span> ()
+printNumsImp1 <span class="fu">=</span> <span class="kw">do</span>
+  putStr <span class="st">&quot;How high should I count? &quot;</span>
+  answer <span class="ot">&lt;-</span> readLn    <span class="co">-- no error checking, just like Java</span>
+  i <span class="ot">&lt;-</span> newIORef <span class="dv">1</span>
+  while (<span class="kw">do</span> ival <span class="ot">&lt;-</span> readIORef i
+            return (ival <span class="fu">&lt;=</span> answer)) <span class="fu">$</span> <span class="kw">do</span>
+    ival <span class="ot">&lt;-</span> readIORef i
+    print ival
+    modifyIORef i (<span class="fu">+</span><span class="dv">1</span>)</code></pre>
+<p>Can we get rid of the clunkiness? Not without a lot of effort. The problem is that we really <em>should</em> know exactly when, in our program, we are reading the value of a mutable cell. For example, do you know what this will print in Java?</p>
+<pre class="sourceCode java"><code class="sourceCode java"><span class="dt">int</span> i = <span class="dv">5</span>;
+<span class="dt">int</span> j = i++ + i++;
+System.<span class="fu">out</span>.<span class="fu">println</span>(j+i);</code></pre>
+<p>The difficulty here is that <code>i</code> is mutable and yet being read multiple times. The result is that Java is hard to reason about! In Haskell, similar code would have to be much more explicit.</p>
+<p>Now, on to <code>for</code>. <code>for</code> is more challenging because it brings a new variable into scope. The only real way to do this in Haskell is with a lambda:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">for ::</span> a                        <span class="co">-- initial value</span>
+    <span class="ot">-&gt;</span> (<span class="dt">IORef</span> a <span class="ot">-&gt;</span> ( <span class="dt">IO</span> <span class="dt">Bool</span>    <span class="co">-- condition</span>
+                   , <span class="dt">IO</span> ()      <span class="co">-- update</span>
+                   , <span class="dt">IO</span> () ))   <span class="co">-- body</span>
+    <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+for initial mk_stuff <span class="fu">=</span> <span class="kw">do</span>
+  ref <span class="ot">&lt;-</span> newIORef initial
+  <span class="kw">let</span> (cond, update, body) <span class="fu">=</span> mk_stuff ref
+  while cond <span class="fu">$</span> <span class="kw">do</span>
+    body
+    update
+
+<span class="ot">printNumsImp2 ::</span> <span class="dt">IO</span> ()
+printNumsImp2 <span class="fu">=</span> <span class="kw">do</span>
+  putStr <span class="st">&quot;How high should I count? &quot;</span>
+  answer <span class="ot">&lt;-</span> readLn
+  for <span class="dv">1</span> <span class="fu">$</span> \i <span class="ot">-&gt;</span> ((<span class="fu">&lt;=</span> answer) <span class="ot">`liftM`</span> readIORef i, modifyIORef i (<span class="fu">+</span><span class="dv">1</span>),
+    readIORef i <span class="fu">&gt;&gt;=</span> print)</code></pre>
+<p>Icky, but imperative.</p>
+<h2 id="monads-in-java">Monads in Java</h2>
+<p>Can we really write monads in Java? Sadly, no. Let’s look closely at the definition of the monad typeclass:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Monad</span> m <span class="kw">where</span>
+<span class="ot">  return ::</span> a <span class="ot">-&gt;</span> m a
+<span class="ot">  (&gt;&gt;=)  ::</span> m a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> m b) <span class="ot">-&gt;</span> m b</code></pre>
+<p>What’s interesting for us now is that <code>m</code> is <em>not</em> a type, but a type constructor: it needs to be applied to some <em>other</em> type to be a proper type. For example, <code>Maybe</code> and <code>IO</code> are monads, but never <code>Maybe Int</code> or <code>IO ()</code>.</p>
+<p>To model anything like this in Java, we would need to have parameterized type variables in Java, which we don’t.</p>
+<p>Not all is lost, however. Although we can’t write the <code>Monad</code> Java interface, we <em>can</em> use the concept of monads in Java programming. Indeed, the <code>Optional</code> class has <code>return</code> and <code>(&gt;&gt;=)</code> buried in its methods:</p>
+<pre class="sourceCode java"><code class="sourceCode java"><span class="kw">public</span> <span class="dt">final</span> <span class="kw">class</span> Optional&lt;T&gt;
+{
+  <span class="kw">public</span> <span class="dt">static</span> &lt;T&gt; Optional&lt;T&gt; <span class="fu">of</span>(T value) { <span class="kw">... </span>}
+  <span class="kw">public</span> &lt;U&gt; Optional&lt;U&gt; <span class="fu">flatMap</span>(Function&lt;? <span class="kw">super</span> T, Optional&lt;U&gt;&gt; mapper)
+    { <span class="kw">... </span>}
+  ...
+}</code></pre>
+<p>I claim that <code>of</code> is really <code>return</code> and <code>flatMap</code> is really <code>(&gt;&gt;=)</code>.</p>
+<p><code>of</code> is a static method, meaning that it takes no implicit object as a parameter. Thus, its only parameter has type <code>T</code>. Its return, we can see, has type <code>Optional&lt;T&gt;</code>. In other words, its type is <code>T -&gt; Optional&lt;T&gt;</code>, which looks awfully like <code>a -&gt; m a</code>, when <code>a</code> is <code>T</code> and <code>m</code> is <code>Optional</code>. And, we can look at the operation of <code>return</code> vs. <code>of</code> and see that they’re the same.</p>
+<p><code>flatMap</code> is a non-static method, meaning that it takes an extra, implicit parameter of type <code>Optional&lt;T&gt;</code> (the type of the class it’s defined in). <code>flatMap</code>’s one explicit parameter has type <code>Function&lt;? super T, Optional&lt;U&gt;&gt;</code>. In pseudo-Haskell, that would be <code>T -&gt; Optional&lt;U&gt;</code>. And the result type is <code>Optional&lt;U&gt;</code>. Putting this all together, we see that the full type of <code>flatMap</code> is <code>Optional&lt;T&gt; -&gt; (T -&gt; Optional&lt;U&gt;) -&gt; Optional&lt;U&gt;</code>, just like <code>(&gt;&gt;=)</code>’s type! And the operation, “If a value is present, apply the provided <code>Optional</code>-bearing mapping function to it, return that result, otherwise return an empty <code>Optional</code>” matches up exactly. (Quote taken from the Java API documentation viewed <a href="http://docs.oracle.com/javase/8/docs/api/">here</a>.)</p>
+<p>Remember <code>stringFitsFormat</code>? That function is intended to recognize strings like “1a2aa” and “3aaa”, where the string consists of pairs of a one-digit number followed by that many “a”s. Here is its implementation:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">stringFitsFormat ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+stringFitsFormat <span class="fu">=</span> isJust <span class="fu">.</span> go
+  <span class="kw">where</span><span class="ot"> go ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">String</span>
+        go [] <span class="fu">=</span> <span class="dt">Just</span> <span class="st">&quot;&quot;</span>
+        go (digit<span class="fu">:</span>str) <span class="fu">=</span> <span class="kw">do</span>
+          n <span class="ot">&lt;-</span> readMaybe [digit]
+          rest <span class="ot">&lt;-</span> stripPrefix (replicate n <span class="ch">'a'</span>) str
+          go rest</code></pre>
+<p>And now in Java:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">public</span> <span class="dt">static</span> Optional&lt;String&gt; <span class="fu">stripPrefix</span>(String prefix, String s)
+  {
+    <span class="kw">if</span>(s.<span class="fu">startsWith</span>(prefix))
+    {
+      <span class="kw">return</span> Optional.<span class="fu">of</span>(s.<span class="fu">substring</span>(prefix.<span class="fu">length</span>()));
+    }
+    <span class="kw">else</span>
+    {
+      <span class="kw">return</span> Optional.<span class="fu">empty</span>();
+    }
+  }
+  
+  <span class="co">// like Arrays.fill, but returns its argument!</span>
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">char</span>[] <span class="fu">fill</span>(<span class="dt">char</span>[] a, <span class="dt">char</span> val)
+  {
+    Arrays.<span class="fu">fill</span>(a, val);
+    <span class="kw">return</span> a;
+  }
+  
+  <span class="co">// no local functions. :(</span>
+  <span class="kw">private</span> <span class="dt">static</span> Optional&lt;String&gt; <span class="fu">stringFitsFormat_go</span>(String s)
+  {
+    <span class="kw">if</span>(s.<span class="fu">isEmpty</span>())
+    {
+      <span class="kw">return</span> Optional.<span class="fu">of</span>(<span class="st">&quot;&quot;</span>);
+    }
+    <span class="kw">else</span>
+    {
+      <span class="dt">char</span> digit = s.<span class="fu">charAt</span>(<span class="dv">0</span>);
+      String str = s.<span class="fu">substring</span>(<span class="dv">1</span>);
+      <span class="kw">return</span> <span class="fu">readMaybe</span>(<span class="st">&quot;&quot;</span> + digit).<span class="fu">flatMap</span>( n -&gt;
+             <span class="fu">stripPrefix</span>(<span class="kw">new</span> String(<span class="fu">fill</span>(<span class="kw">new</span> <span class="dt">char</span>[n], 'a')), str).<span class="fu">flatMap</span>( rest -&gt;
+             <span class="fu">stringFitsFormat_go</span>(rest)));
+      <span class="co">// I miss `do` notation.</span>
+    }
+  }
+  
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">boolean</span> <span class="fu">stringFitsFormat</span>(String s)
+  {
+    <span class="kw">return</span> <span class="fu">stringFitsFormat_go</span>(s).<span class="fu">isPresent</span>();
+  }
+<span class="co">/*</span></code></pre>
+<p>So, we’ve seen that Java really does have the <code>Maybe</code> monad. But, it’s actually not all that useful in Java because Java’s exceptions mechanism has essentially the same purpose – allowing a computation to abort in the middle.</p>
+<p>On the other hand, Haskell’s list monad, which can be thought of as a non-determinism monad, <em>is</em> quite useful in Java. Java’s new <code>Stream</code> interface is the right home for this monad, and that interface provides the same <code>of</code> and <code>flatMap</code> combinators that <code>Optional</code> does. We can do the exact same analysis that we did before to discover that <code>of</code> is really <code>return</code> and <code>flatMap</code> is really <code>(&gt;&gt;=)</code>. So, we’ll now consider a power use of the non-determinism monad in solving a logic puzzle, taken from <a href="https://openlibrary.org/works/OL7267035W/Superior_mathematical_puzzles_with_detailed_solutions">Dinesman 1968</a>:</p>
+<p>“Baker, Cooper, Fletcher, Miller, and Smith live on different floors of an apartment house that contains only five floors. Baker does not live on the top floor. Cooper does not live on the bottom floor. Fletcher does not live on either the top or the bottom floor. Miller lives on a higher floor than does Cooper. Smith does not live on a floor adjacent to Fletcher’s. Fletcher does not live on a floor adjacent to Cooper’s. Where does everyone live?”</p>
+<p>Here is a solution in Haskell:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- Is the given list composed of all distinct elements?</span>
+<span class="ot">distinct ::</span> <span class="dt">Eq</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+distinct [] <span class="fu">=</span> <span class="dt">True</span>
+distinct (x<span class="fu">:</span>xs) <span class="fu">=</span> all (x <span class="fu">/=</span>) xs <span class="fu">&amp;&amp;</span> distinct xs
+
+<span class="co">-- Are the two numbers provided separated by exactly 1?</span>
+<span class="ot">adjacent ::</span> (<span class="dt">Num</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+adjacent x y <span class="fu">=</span> abs (x <span class="fu">-</span> y) <span class="fu">==</span> <span class="dv">1</span>
+
+<span class="co">-- Solves the puzzle, giving the floors of</span>
+<span class="co">-- (Baker, Cooper, Fletcher, Miller, and Smith), in that order</span>
+<span class="ot">multipleDwelling ::</span> [(<span class="dt">Int</span>,<span class="dt">Int</span>,<span class="dt">Int</span>,<span class="dt">Int</span>,<span class="dt">Int</span>)]
+multipleDwelling <span class="fu">=</span> <span class="kw">do</span>
+  baker    <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="fu">..</span> <span class="dv">5</span>]
+  cooper   <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="fu">..</span> <span class="dv">5</span>]
+  fletcher <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="fu">..</span> <span class="dv">5</span>]
+  miller   <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="fu">..</span> <span class="dv">5</span>] 
+  smith    <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="fu">..</span> <span class="dv">5</span>]
+  guard (distinct [baker, cooper, fletcher, miller, smith])
+  guard (baker <span class="fu">/=</span> <span class="dv">5</span>)
+  guard (cooper <span class="fu">/=</span> <span class="dv">1</span>)
+  guard (fletcher <span class="fu">/=</span> <span class="dv">5</span>)
+  guard (fletcher <span class="fu">/=</span> <span class="dv">1</span>)
+  guard (miller <span class="fu">&gt;</span> cooper)
+  guard (not (adjacent smith fletcher))
+  guard (not (adjacent fletcher cooper))
+  return (baker, cooper, fletcher, miller, smith)</code></pre>
+<p>Let’s translate this to Java!</p>
+<p>First, we’ll need the <code>guard</code> combinator. Recall the type of <code>guard</code>:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">guard ::</span> <span class="dt">MonadPlus</span> m <span class="ot">=&gt;</span> <span class="dt">Bool</span> <span class="ot">-&gt;</span> m ()</code></pre>
+<p>It takes a Boolean condition and does nothing (that is, returns <code>()</code>) if the condition is true but “fails” (in the way appropriate for the <code>MonadPlus</code> instance) if the condition is false.</p>
+<p>Specializing to lists, here is a suitable implementation:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">guard ::</span> <span class="dt">Bool</span> <span class="ot">-&gt;</span> [()]
+guard <span class="dt">True</span>  <span class="fu">=</span> return ()   <span class="co">-- a one-element list</span>
+guard <span class="dt">False</span> <span class="fu">=</span> []          <span class="co">-- a zero-element list</span></code></pre>
+<p>Translating this to Java isn’t actually so bad. We’ll need the <code>()</code> type, of course.</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  
+  <span class="kw">private</span> <span class="kw">enum</span> Unit { UNIT }   <span class="co">// It's sad I have to define this.</span>
+  
+  <span class="kw">private</span> <span class="dt">static</span> Stream&lt;Unit&gt; <span class="fu">guard</span>(<span class="dt">boolean</span> b)
+  {
+    <span class="co">// recall that Java's ?: operator is just like Haskell's if/then/else</span>
+    <span class="kw">return</span> b ? Stream.<span class="fu">of</span>(Unit.<span class="fu">UNIT</span>) : Stream.<span class="fu">empty</span>();
+  }
+
+<span class="co">/*</span></code></pre>
+<p>The rest of the translation is rather straightforward. Java doesn’t have Haskell’s nice <code>[1..5]</code> syntax, so we write <code>range</code> to help us out. Unfortunately, the naive translation is far too slow to be usable in Java.</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">private</span> <span class="dt">static</span> &lt;A&gt; <span class="dt">boolean</span> <span class="fu">distinct</span>(A[] as)
+  {
+    <span class="co">// the Haskell-y way is way too slow in Java</span>
+    Set&lt;A&gt; set = <span class="kw">new</span> HashSet&lt;&gt;(Arrays.<span class="fu">asList</span>(as));
+    <span class="kw">return</span> set.<span class="fu">size</span>() == as.<span class="fu">length</span>;
+  }
+  
+  <span class="kw">private</span> <span class="dt">static</span> <span class="dt">boolean</span> <span class="fu">adjacent</span>(Integer a, Integer b)
+  {
+    <span class="kw">return</span> (Math.<span class="fu">abs</span>(a - b) == <span class="dv">1</span>);
+  }
+
+  <span class="co">// Alas, the simple version is too slow in Java. Not lazy enough, perhaps?</span>
+  <span class="co">/*</span>
+<span class="co">  private static Stream&lt;Integer&gt; range(int lo, int hi)</span>
+<span class="co">  {</span>
+<span class="co">    return Stream.iterate(lo, x -&gt; x + 1);</span>
+<span class="co">  }</span>
+
+<span class="co">  public static int[][] multipleDwelling()</span>
+<span class="co">  {</span>
+<span class="co">    return</span>
+<span class="co">    range(1, 5)                        .flatMap( baker    -&gt;</span>
+<span class="co">    range(1, 5)                        .flatMap( cooper   -&gt;</span>
+<span class="co">    range(1, 5)                        .flatMap( fletcher -&gt;</span>
+<span class="co">    range(1, 5)                        .flatMap( miller   -&gt;</span>
+<span class="co">    range(1, 5)                        .flatMap( smith    -&gt;</span>
+<span class="co">    guard(distinct(new Integer[] {baker, cooper, fletcher, miller, smith}))</span>
+<span class="co">                                       .flatMap( u1       -&gt;</span>
+<span class="co">    guard(baker != 5)                  .flatMap( u2       -&gt;</span>
+<span class="co">    guard(cooper != 1)                 .flatMap( u3       -&gt;</span>
+<span class="co">    guard(fletcher != 5)               .flatMap( u4       -&gt;</span>
+<span class="co">    guard(fletcher != 1)               .flatMap( u5       -&gt;</span>
+<span class="co">    guard(miller &gt; cooper)             .flatMap( u6       -&gt;</span>
+<span class="co">    guard(!adjacent(smith, fletcher))  .flatMap( u7       -&gt;</span>
+<span class="co">    guard(!adjacent(fletcher, cooper)) .flatMap( u8       -&gt;</span>
+<span class="co">    Stream.of(new int[] { baker, cooper, fletcher, miller, smith }))))))))))))))</span>
+<span class="co">    .toArray(int[][]::new);</span>
+<span class="co">  }</span>
+<span class="co">  */</span>
+<span class="co">/*</span></code></pre>
+<p>Instead, we have to use this optimized version, which is careful to always choose distinct floors and tries to minimize backtracking.</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+  <span class="kw">private</span> <span class="dt">static</span> Stream&lt;Integer&gt; <span class="fu">chooseFloor</span>(Integer<span class="kw">... </span>floors)
+  {
+    Set&lt;Integer&gt; avail = <span class="kw">new</span> HashSet&lt;&gt;(Arrays.<span class="fu">asList</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>));
+    avail.<span class="fu">removeAll</span>(Arrays.<span class="fu">asList</span>(floors));
+    <span class="kw">return</span> avail.<span class="fu">stream</span>();
+  }
+
+  <span class="co">// This more optimized version works just fine, though.</span>
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">int</span>[][] <span class="fu">multipleDwelling</span>()
+  {
+    <span class="kw">return</span>
+    <span class="fu">chooseFloor</span>()                                .<span class="fu">flatMap</span>( fletcher -&gt;
+    <span class="fu">guard</span>(fletcher != <span class="dv">5</span>)                         .<span class="fu">flatMap</span>( u1       -&gt;
+    <span class="fu">guard</span>(fletcher != <span class="dv">1</span>)                         .<span class="fu">flatMap</span>( u2       -&gt;
+    <span class="fu">chooseFloor</span>(fletcher)                        .<span class="fu">flatMap</span>( cooper   -&gt;
+    <span class="fu">guard</span>(cooper != <span class="dv">1</span>)                           .<span class="fu">flatMap</span>( u3       -&gt;
+    <span class="fu">guard</span>(!<span class="fu">adjacent</span>(fletcher, cooper))           .<span class="fu">flatMap</span>( u4       -&gt;
+    <span class="fu">chooseFloor</span>(fletcher, cooper)                .<span class="fu">flatMap</span>( miller   -&gt;
+    <span class="fu">guard</span>(miller &gt; cooper)                       .<span class="fu">flatMap</span>( u5       -&gt;
+    <span class="fu">chooseFloor</span>(fletcher, cooper, miller)        .<span class="fu">flatMap</span>( smith    -&gt;
+    <span class="fu">guard</span>(!<span class="fu">adjacent</span>(smith, fletcher))            .<span class="fu">flatMap</span>( u6       -&gt;
+    <span class="fu">chooseFloor</span>(fletcher, cooper, miller, smith) .<span class="fu">flatMap</span>( baker    -&gt;
+    <span class="fu">guard</span>(baker != <span class="dv">5</span>)                            .<span class="fu">flatMap</span>( u7       -&gt;
+    Stream.<span class="fu">of</span>(<span class="kw">new</span> <span class="dt">int</span>[] { baker, cooper, fletcher, miller, smith })))))))))))))
+    .<span class="fu">toArray</span>(<span class="dt">int</span>[][]::<span class="kw">new</span>);
+  }
+<span class="co">/*</span></code></pre>
+<p>Amazingly, that actually works! It takes rather long to compile though, making me think that programming monadically in Java is far from practical.</p>
+<p>So, what is the upshot here? That you can take your knowledge from Haskell and directly apply it in Java. By thinking in terms of the non-determinism monad, you might write an easier solution to a Java problem than you could otherwise. Functional programming is a new way to <em>think</em>, and that thinking can translate into any programming language.</p>
+<p>But if the language has lambdas, it will be easier!</p>
+<p>And now, we end with more obligatory Java boilerplate:</p>
+<pre class="sourceCode java"><code class="sourceCode java">*/
+
+  <span class="co">// Why isn't this built-in again?</span>
+  <span class="kw">public</span> <span class="dt">static</span> String <span class="fu">intMatToString</span>(<span class="dt">int</span>[][] mat)
+  {
+    <span class="kw">return</span> Arrays.<span class="fu">toString</span>(Arrays.<span class="fu">stream</span>(mat)
+                                 .<span class="fu">map</span>(Arrays::toString)
+                                 .<span class="fu">toArray</span>(String[]::<span class="kw">new</span>));
+  }
+
+  <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">main</span>(String[] args)
+  {
+    System.<span class="fu">out</span>.<span class="fu">println</span>(<span class="fu">intMatToString</span>(<span class="fu">multipleDwelling</span>()));    
+  }
+}
+
+<span class="co">/*</span></code></pre>
+<p>*/</p>
+<hr />
+<p><code>Generated 2014-12-04 13:54:25.590718</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

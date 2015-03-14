@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="monads">Monads</h1>
+<p>CIS 194 Week 08<br />23 October 2014</p>
+<p>Suggested reading:</p>
+<ul>
+<li><a href="http://www.haskell.org/haskellwiki/Typeclassopedia">The Typeclassopedia</a></li>
+<li><a href="http://learnyouahaskell.com/a-fistful-of-monads">LYAH Chapter 12: A Fistful of Monads</a></li>
+<li><a href="http://learnyouahaskell.com/input-and-output">LYAH Chapter 9: Input and Output</a></li>
+<li><a href="http://book.realworldhaskell.org/read/io.html">RWH Chapter 7: I/O</a></li>
+<li><a href="http://book.realworldhaskell.org/read/monads.html">RWH Chapter 14: Monads</a></li>
+<li><a href="http://book.realworldhaskell.org/read/programming-with-monads.html">RWH Chapter 15: Programming with monads</a></li>
+</ul>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Control.Monad</span></code></pre>
+<h2 id="motivation">Motivation</h2>
+<p>Despite their scary name, there’s nothing all that frightening – or even all that special – about monads. The concept of monad started its life as an abstract bit of mathematics, and it so happened that functional programmers stumbled upon it as a useful programming construct. But it <em>is</em> a useful programming construct!</p>
+<p>A monad is handy whenever a programmer wants to sequence actions, and the details of the monad says exactly how the actions should be sequenced. A monad may also store some information that can be read from and written to while performing actions.</p>
+<p>We’ve already learned about the |IO| monad, which sequences its actions quite naturally, performing them in order, and gives actions access to read and write anything, anywhere. We’ll also see the |Maybe| and |[]| (pronounced “list”) monads, which don’t give any access to reading and writing, but do interesting things with sequencing. And, for homework, you’ll use the |Rand| monad, which doesn’t much care about sequencing, but it does allow actions to read from and update a random generator.</p>
+<p>One of the beauties of programming with monads is that monads allow programmers to work with mutable state from a pure language. Haskell doesn’t lose its purity when monads come in (although monadic code is often called “impure”). Instead, the degree to which code can be impure is denoted by the choice of monad. For example, the |Rand| monad means that an action can generate random numbers, but can’t for example, write strings to the user. And the |Maybe| monad doesn’t give you any extra capabilities at all, but makes writing possibly-erroring computations much easier to write.</p>
+<p>In the end, the best way to really understand monads is to work with them for a while. After programming using several different monads, you’ll be able to abstract away the essence of what a monad really is.</p>
+<h2 id="monad">Monad</h2>
+<p>The <code>Monad</code> type class is defined as follows:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Monad</span> m <span class="kw">where</span>
+<span class="ot">  return ::</span> a <span class="ot">-&gt;</span> m a
+
+   <span class="co">-- pronounced &quot;bind&quot;</span>
+<span class="ot">  (&gt;&gt;=) ::</span> m a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> m b) <span class="ot">-&gt;</span> m b
+
+<span class="ot">  (&gt;&gt;)  ::</span> m a <span class="ot">-&gt;</span> m b <span class="ot">-&gt;</span> m b
+  m1 <span class="fu">&gt;&gt;</span> m2 <span class="fu">=</span> m1 <span class="fu">&gt;&gt;=</span> \_ <span class="ot">-&gt;</span> m2</code></pre>
+<p>We’ve, in fact, already seen <code>return</code>, specialized to the <code>IO</code> monad. Here, we see that it’s available in every monad.</p>
+<p><code>(&gt;&gt;)</code> is just a specialized version of <code>(&gt;&gt;=)</code> (it is included in the <code>Monad</code> class in case some instance wants to provide a more efficient implementation, but usually the default implementation is just fine). So to understand it we first need to understand <code>(&gt;&gt;=)</code>.</p>
+<p>There is actually a fourth method called <code>fail</code>, but putting it in the <code>Monad</code> class was a mistake, and you should never use it, so I won’t tell you about it (you can <a href="http://www.haskell.org/haskellwiki/Typeclassopedia#do_notation">read about it in the Typeclassopedia</a> if you are interested). There are active plans afoot to change the Haskell standard libraries to remove <code>fail</code> from <code>Monad</code>.</p>
+<p><code>(&gt;&gt;=)</code> (pronounced “bind”) is where all the action is! Let’s think carefully about its type:</p>
+<pre><code>(&gt;&gt;=) :: m a -&gt; (a -&gt; m b) -&gt; m b
+</code></pre>
+<p><code>(&gt;&gt;=)</code> takes two arguments. The first one is a value of type <code>m a</code>. (Incidentally, such values are sometimes called <em>monadic values</em>, or <em>computations</em>, or <em>actions</em>. The one thing you must <em>not</em> call them is “monads”, since that is a kind error: the type constructor <code>m</code> is a monad.) In any case, the idea is that an action of type <code>m a</code> represents a computation which results in a value (or several values, or no values) of type <code>a</code>, and may also have some sort of “effect”:</p>
+<ul>
+<li><p><code>c1 :: Maybe a</code> is a computation which might fail but results in an <code>a</code> if it succeeds.</p></li>
+<li><p><code>c2 :: [a]</code> is a computation which results in (multiple) <code>a</code>s.</p></li>
+<li><p><code>c3 :: Rand StdGen a</code> is a computation which may use pseudo-randomness and produces an <code>a</code>.</p></li>
+<li><p><code>c4 :: IO a</code> is a computation which potentially has some I/O effects and then produces an <code>a</code>.</p></li>
+</ul>
+<p>And so on. Now, what about the second argument to <code>(&gt;&gt;=)</code>? It is a <em>function</em> of type <code>(a -&gt; m b)</code>. That is, it is a function which will <em>choose</em> the next computation to run based on the result(s) of the first computation. This is precisely what embodies the promised power of <code>Monad</code> to encapsulate computations which can be sequenced.</p>
+<p>So all <code>(&gt;&gt;=)</code> really does is put together two actions to produce a larger one, which first runs one and then the other, returning the result of the second one. The all-important twist is that we get to decide which action to run second based on the output from the first.</p>
+<p>The default implementation of <code>(&gt;&gt;)</code> should make sense now:</p>
+<pre><code>(&gt;&gt;)  :: m a -&gt; m b -&gt; m b
+m1 &gt;&gt; m2 = m1 &gt;&gt;= \_ -&gt; m2
+</code></pre>
+<p><code>m1 &gt;&gt; m2</code> simply does <code>m1</code> and then <code>m2</code>, ignoring the result of <code>m1</code>.</p>
+<h2 id="examples">Examples</h2>
+<p>Let’s start by writing a <code>Monad</code> instance for <code>Maybe</code>:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">Maybe</span> <span class="kw">where</span>
+  return  <span class="fu">=</span> <span class="dt">Just</span>
+  <span class="dt">Nothing</span> <span class="fu">&gt;&gt;=</span> _ <span class="fu">=</span> <span class="dt">Nothing</span>
+  <span class="dt">Just</span> x  <span class="fu">&gt;&gt;=</span> k <span class="fu">=</span> k x</code></pre>
+<p><code>return</code>, of course, is <code>Just</code>. If the first argument of <code>(&gt;&gt;=)</code> is <code>Nothing</code>, then the whole computation fails; otherwise, if it is <code>Just x</code>, we apply the second argument to <code>x</code> to decide what to do next.</p>
+<p>Incidentally, it is common to use the letter <code>k</code> for the second argument of <code>(&gt;&gt;=)</code> because <code>k</code> stands for “continuation”.</p>
+<p>Some examples:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">check ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span>
+check n <span class="fu">|</span> n <span class="fu">&lt;</span> <span class="dv">10</span>    <span class="fu">=</span> <span class="dt">Just</span> n
+        <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="dt">Nothing</span>
+
+<span class="ot">halve ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span>
+halve n <span class="fu">|</span> even n    <span class="fu">=</span> <span class="dt">Just</span> <span class="fu">$</span> n <span class="ot">`div`</span> <span class="dv">2</span>
+        <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="dt">Nothing</span>
+
+ex01 <span class="fu">=</span> return <span class="dv">7</span> <span class="fu">&gt;&gt;=</span> check <span class="fu">&gt;&gt;=</span> halve
+ex02 <span class="fu">=</span> return <span class="dv">12</span> <span class="fu">&gt;&gt;=</span> check <span class="fu">&gt;&gt;=</span> halve
+ex03 <span class="fu">=</span> return <span class="dv">12</span> <span class="fu">&gt;&gt;=</span> halve <span class="fu">&gt;&gt;=</span> check</code></pre>
+<p>The <code>do</code> notation we’ve learned for working with IO can work with <em>any</em> monad:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell">ex04 <span class="fu">=</span> <span class="kw">do</span>
+  checked <span class="ot">&lt;-</span> check <span class="dv">7</span>
+  halve checked
+ex05 <span class="fu">=</span> <span class="kw">do</span>
+  checked <span class="ot">&lt;-</span> check <span class="dv">12</span>
+  halve checked
+ex06 <span class="fu">=</span> <span class="kw">do</span>
+  halved <span class="ot">&lt;-</span> halve <span class="dv">12</span>
+  check halved</code></pre>
+<p>How about a <code>Monad</code> instance for the list constructor <code>[]</code>?</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Monad</span> [] <span class="kw">where</span>
+  return x <span class="fu">=</span> [x]
+  xs <span class="fu">&gt;&gt;=</span> k <span class="fu">=</span> concat (map k xs)</code></pre>
+<p>A simple example:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">addOneOrTwo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]
+addOneOrTwo x <span class="fu">=</span> [x<span class="fu">+</span><span class="dv">1</span>, x<span class="fu">+</span><span class="dv">2</span>]
+
+ex07 <span class="fu">=</span> [<span class="dv">10</span>,<span class="dv">20</span>,<span class="dv">30</span>] <span class="fu">&gt;&gt;=</span> addOneOrTwo
+ex08 <span class="fu">=</span> <span class="kw">do</span>
+  num <span class="ot">&lt;-</span> [<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>]
+  addOneOrTwo num</code></pre>
+<p>We can think of the list monad as encoding non-determinism, and then producing all possible values of a computation. Above, <code>num</code> is non-deterministically selected from <code>[10, 20, 30]</code> and then is non-deterministically added to 1 or 2. The result is a list of 6 elements with all possible results.</p>
+<p>This non-determinism can be made even more apparent through the use of the function <code>guard</code>, which aborts a computation if its argument isn’t <code>True</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell">ex09 <span class="fu">=</span> <span class="kw">do</span>
+  num <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">20</span>]
+  guard (even num)
+  guard (num <span class="ot">`mod`</span> <span class="dv">3</span> <span class="fu">==</span> <span class="dv">0</span>)
+  return num</code></pre>
+<p>Here, we can think of choosing <code>num</code> from the range 1 through 20, and then checking if it is even and divisible by 3.</p>
+<p>The full type of <code>guard</code> is <code>MonadPlus m =&gt; Bool -&gt; m ()</code>. <code>MonadPlus</code> is another class (from <code>Control.Monad</code>) that characterizes monads that have a possibility of failure. These include <code>Maybe</code> and <code>[]</code>. <code>guard</code> then takes a Boolean value, but produces no useful result. That’s why its return type is <code>m ()</code> – no new information comes out from it. But, <code>guard</code> clearly does affect sequencing, so it is still useful.</p>
+<h2 id="monad-combinators">Monad combinators</h2>
+<p>One nice thing about the <code>Monad</code> class is that using only <code>return</code> and <code>(&gt;&gt;=)</code> we can build up a lot of nice general combinators for programming with monads. Let’s look at a couple.</p>
+<p>First, <code>sequence</code> takes a list of monadic values and produces a single monadic value which collects the results. What this means depends on the particular monad. For example, in the case of <code>Maybe</code> it means that the entire computation succeeds only if all the individual ones do; in the case of <code>IO</code> it means to run all the computations in sequence; in the case of <code>Parser</code> it means to run all the parsers on sequential parts of the input (and succeed only if they all do).</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">sequence<span class="ot"> ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> [m a] <span class="ot">-&gt;</span> m [a]
+sequence [] <span class="fu">=</span> return []
+sequence (ma<span class="fu">:</span>mas) <span class="fu">=</span>
+  ma <span class="fu">&gt;&gt;=</span> \a <span class="ot">-&gt;</span>
+  sequence mas <span class="fu">&gt;&gt;=</span> \as <span class="ot">-&gt;</span>
+  return (a<span class="fu">:</span>as)</code></pre>
+<p>Using <code>sequence</code> we can also write other combinators, such as</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">replicateM ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m [a]
+replicateM n m <span class="fu">=</span> sequence (replicate n m)
+
+mapM<span class="ot"> ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> m b) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> m [b]
+mapM _ [] <span class="fu">=</span> return []
+mapM f (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="kw">do</span>
+  x'  <span class="ot">&lt;-</span> f x
+  xs' <span class="ot">&lt;-</span> mapM f xs
+  return (x' <span class="fu">:</span> xs')
+
+<span class="ot">void ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> m a <span class="ot">-&gt;</span> m ()
+void ma <span class="fu">=</span> <span class="kw">do</span>
+  _ <span class="ot">&lt;-</span> ma
+  return ()
+
+<span class="ot">join ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> m (m a) <span class="ot">-&gt;</span> m a
+join mma <span class="fu">=</span> <span class="kw">do</span>
+  ma <span class="ot">&lt;-</span> mma
+  ma
+
+<span class="ot">liftM ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m b
+liftM f ma <span class="fu">=</span> <span class="kw">do</span>
+  a <span class="ot">&lt;-</span> ma
+  return (f a)
+
+<span class="ot">when ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> <span class="dt">Bool</span> <span class="ot">-&gt;</span> m () <span class="ot">-&gt;</span> m ()
+when b action <span class="fu">=</span>
+  <span class="kw">if</span> b
+  <span class="kw">then</span> action
+  <span class="kw">else</span> return ()</code></pre>
+<h2 id="list-comprehensions">List comprehensions</h2>
+<p>The monad for lists gives us a new notation for list building that turns out to be quite convenient. Building lists using monad-like operations is so useful that Haskell has a special syntax for it, called <em>list comprehensions</em>. It is best shown by examples:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">evensUpTo100 ::</span> [<span class="dt">Int</span>]
+evensUpTo100 <span class="fu">=</span> [ n <span class="fu">|</span> n <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">100</span>], even n ]
+
+<span class="co">-- this next one is a bit inefficient, but it works</span>
+<span class="ot">oddPerfectSquares ::</span> [<span class="dt">Int</span>]
+oddPerfectSquares <span class="fu">=</span> [ n <span class="fu">|</span> n <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">100</span>]
+                        , odd n
+                        , root <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span>]
+                        , root <span class="fu">*</span> root <span class="fu">==</span> n ]
+
+<span class="ot">cartesianProduct ::</span> [a] <span class="ot">-&gt;</span> [b] <span class="ot">-&gt;</span> [(a,b)]
+cartesianProduct as bs <span class="fu">=</span> [ (a,b) <span class="fu">|</span> a <span class="ot">&lt;-</span> as, b <span class="ot">&lt;-</span> bs ]
+
+<span class="ot">combine ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [b] <span class="ot">-&gt;</span> [c]
+combine f as bs <span class="fu">=</span> [ f a b <span class="fu">|</span> a <span class="ot">&lt;-</span> as, b <span class="ot">&lt;-</span> bs ]
+
+<span class="co">-- inefficient again</span>
+<span class="ot">primes ::</span> [<span class="dt">Int</span>]
+primes <span class="fu">=</span> [ p <span class="fu">|</span> p <span class="ot">&lt;-</span> [<span class="dv">2</span><span class="fu">..</span>]
+             , all ((<span class="fu">/=</span> <span class="dv">0</span>) <span class="fu">.</span> (p <span class="ot">`mod`</span>)) [<span class="dv">2</span><span class="fu">..</span>p<span class="fu">-</span><span class="dv">1</span>] ]</code></pre>
+<p>List comprehensions work just like set-builder notation you may have learned in a high-school math class. In a list comprehension, the statements to the right of the <code>|</code> are carried out, in order. A statement with a <code>&lt;-</code> selects an element from a list. Statements without <code>&lt;-</code> are Boolean expressions; if the expression is <code>False</code>, then the current choice of elements is thrown out. (<code>let</code> statements, just like in <code>do</code> notation – without an <code>in</code> – are also allowed.)</p>
+<p>In turns out that there is a straightforward translation from list comprehensions to <code>do</code> notation:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">[ a <span class="fu">|</span> b <span class="ot">&lt;-</span> c, d, e, f <span class="ot">&lt;-</span> g, h ]</code></pre>
+<p>is exactly equivalent to</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">do</span> b <span class="ot">&lt;-</span> c
+   guard d
+   guard e
+   f <span class="ot">&lt;-</span> g
+   guard h
+   return a</code></pre>
+<p>Note that, in the translation, lists aren’t mentioned anywhere! With the GHC language extension <code>MonadComprehensions</code>, you can use list comprehension notation for <em>any</em> monad. But, I’ve never used one for anything other than lists.</p>
+<hr />
+<p><code>Generated 2014-12-04 13:37:47.603805</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

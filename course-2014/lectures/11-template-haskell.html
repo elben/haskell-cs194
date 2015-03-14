@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <a href="../final.html">Final Project</a> | <a href="../spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="template-haskell">Template Haskell</h1>
+<p>CIS 194 Week 11 13 November 2014</p>
+<ul>
+<li><a href="https://www.haskell.org/haskellwiki/Template_Haskell">Template Haskell</a> on the Haskell Wiki.</li>
+<li><a href="https://www.haskell.org/ghc/docs/latest/html/users_guide/template-haskell.html">Template Haskell</a> in the GHC user manual</li>
+<li>The original <a href="http://research.microsoft.com/en-us/um/people/simonpj/Papers/meta-haskell/meta-haskell.pdf">paper</a> on Template Haskell (somewhat outdated)</li>
+</ul>
+<p>Template Haskell is a <em>compile-time meta-programming</em> facility for Haskell. Let’s pull all that terminology apart:</p>
+<ul>
+<li><p>“Compile-time means” that Template Haskell “happens” as you compile. More concretely, Template Haskell code gets <em>run</em> when you <em>compile</em>. This means that you can run arbitrary programs <em>while compiling</em>.</p></li>
+<li><p>“Meta-programming” means that Template Haskell code produces Haskell code as output. We use Template Haskell to programmatically write parts of a program.</p></li>
+</ul>
+<p>Template Haskell is a language extension, specific to GHC. Recall that there is a standard for Haskell, called Haskell 2010. (There was another one called Haskell 98.) Any feature in GHC that deviates from this standard is enabled only by a language extension, which must be specified in a file that uses the feature. (Well, almost any feature.)</p>
+<p>So, we enable Template Haskell now:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE TemplateHaskell #-}</span>
+<span class="kw">import </span><span class="dt">Control.Monad</span> ( replicateM )
+<span class="kw">import </span><span class="dt">Data.Maybe</span>    ( maybeToList )</code></pre>
+<p>TH (as we’ll call it) also has a library associated with it:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Language.Haskell.TH</span></code></pre>
+<p>Somewhat annoyingly (but out of necessity), TH enforces its so-called “stage restriction”, which says that the only functions you can call at compile time <em>must</em> be written in other modules than the one being defined. This does make sense, because otherwise, you could write a recursive function which would be required to write part of itself. Thinking about such things quickly makes a Haskeller go (more) insane, so we forbid outright.</p>
+<p>Thus, for these notes, we’ll have a companion module <code>SpliceFunctions</code> that has the compile-time code. However, so that we can see the definitions of the functions as you read this file, they are included here, too. We’ll import the <code>SpliceFunctions</code> module qualified so that we can unambiguously refer to the <code>SpliceFunctions</code> functions in splices.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import qualified</span> <span class="dt">SpliceFunctions</span> <span class="kw">as</span> <span class="dt">SF</span></code></pre>
+<h2 id="splices">Splices</h2>
+<p>Template Haskell has two modes: splices and quotes. Let’s start with <em>splices</em>. A splice is a chunk of TH code that produces some Haskell which becomes a part of your program. The type of an (expression) splice is <code>Q Exp</code>, where <code>Q</code> and <code>Exp</code> are types from the TH library.</p>
+<p>Just to get an idea of where we’re going, let’s take a look at that <code>Exp</code> type:</p>
+<pre><code>*Main&gt; :info Exp
+data Exp
+  = VarE Name
+  | ConE Name
+  | LitE Lit
+  | AppE Exp Exp
+  | InfixE (Maybe Exp) Exp (Maybe Exp)
+  | UInfixE Exp Exp Exp
+  | ParensE Exp
+  | LamE [Pat] Exp
+  | LamCaseE [Match]
+  | TupE [Exp]
+  | UnboxedTupE [Exp]
+  | CondE Exp Exp Exp
+  | MultiIfE [(Guard, Exp)]
+  | LetE [Dec] Exp
+  | CaseE Exp [Match]
+  | DoE [Stmt]
+  | CompE [Stmt]
+  | ArithSeqE Range
+  | ListE [Exp]
+  | SigE Exp Type
+  | RecConE Name [FieldExp]
+  | RecUpdE Exp [FieldExp]
+</code></pre>
+<p>Most expression forms that you can write in Haskell can be encoded into an <code>Exp</code>, short for “expression”, naturally. (Not all expressions fit into <code>Exp</code>. TH often lags behind proper Haskell in some of Haskell’s more esoteric features.)</p>
+<p>Now, what about <code>Q</code>?</p>
+<pre><code>*Main&gt; :info Q
+&lt;snip&gt;
+newtype Q a = &lt;snip&gt;
+instance Monad Q -- Defined in ‘Language.Haskell.TH.Syntax’
+&lt;snip&gt;
+</code></pre>
+<p>Oh – so <code>Q</code> is just a monad. <code>Q</code> is the monad that wraps computations that can be run in the GHC compiler, at compile time. We’ll see more of the capabilities the <code>Q</code> monad grants as we proceed.</p>
+<p>Now, let’s see a proper example:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">add5 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
+add5 n <span class="fu">=</span> return (<span class="dt">AppE</span> (<span class="dt">AppE</span> (<span class="dt">VarE</span> (mkName <span class="st">&quot;+&quot;</span>)) (<span class="dt">LitE</span> (<span class="dt">IntegerL</span> n)))
+                      (<span class="dt">LitE</span> (<span class="dt">IntegerL</span> <span class="dv">5</span>)))</code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">eleven ::</span> <span class="dt">Integer</span>
+eleven <span class="fu">=</span> <span class="fu">$</span>( SF.add5 <span class="dv">6</span> )</code></pre>
+<p>The <code>compileTimeAdd5</code> function produces an expression that applies a variable named “<code>+</code>” to the number provided and the number 5. (Recall that <code>a + b</code> really means <code>(+) a b</code>, which really means <code>(((+) a) b)</code>.) TH uses the type <code>Name</code> instead of <code>String</code> to store variable names. This is because there can be multiple variables of the same name (perhaps in different scopes), and TH needs to be able to distinguish among them. Happily, we have a function <code>mkName :: String -&gt; Name</code> that we’ll use often to build <code>Name</code>s from <code>String</code>s.</p>
+<p>Then, in <code>eleven</code>, we see the use of a splice. A splice is written between <code>$(</code> and <code>)</code>. It must have type <code>Q Exp</code>. GHC takes the <code>Exp</code> that is produced and uses that as the code to put in place of the splice. You can see this in action by turning on the <code>-ddump-splices</code> option:</p>
+<pre><code>*Main&gt; :set -ddump-splices
+*Main&gt; :reload
+...
+Splicing expression
+    SF.add5 6 ======&gt; (+) 6 5
+</code></pre>
+<p>What that output is saying is that the code <code>SF.add5 6</code> is run, producing the expression <code>(+) 6 5</code>, which is then what is used as the definition of <code>eleven</code>.</p>
+<p>We can actually do even better: let’s do the actual addition at compile time, which means we don’t have to bother when the application is running.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">compileTimeAdd5 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
+compileTimeAdd5 n <span class="fu">=</span> return (<span class="dt">LitE</span> (<span class="dt">IntegerL</span> (n <span class="fu">+</span> <span class="dv">5</span>)))</code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">eleven' ::</span> <span class="dt">Integer</span>
+eleven' <span class="fu">=</span> <span class="fu">$</span>( SF.compileTimeAdd5 <span class="dv">7</span> )</code></pre>
+<pre><code>*Main&gt; :reload
+...
+Splicing expression
+    SF.compileTimeAdd5 7 ======&gt; 12
+</code></pre>
+<p>Here, note that the result of <code>SF.compileTimeAdd5 7</code> is just the number <code>12</code>. No addition needs to happen when our program is running! Cool!</p>
+<p>However, adding 5 is a terrible example of what TH is good for. TH shines when you must write a chunk of code, but that code is very repetitive. Say, for example, that you have variables named <code>a1</code> through <code>a100</code>, and you want to put all of these into a list. It’s easy with TH:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">listOfAs ::</span> <span class="dt">Q</span> <span class="dt">Exp</span>
+listOfAs <span class="fu">=</span> return (<span class="dt">ListE</span> (map <span class="dt">VarE</span> [ mkName (<span class="ch">'a'</span> <span class="fu">:</span> show n) <span class="fu">|</span> n <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">100</span>] ]))
+
+<span class="co">{- Why do you think this is commented out??</span>
+<span class="co">bigList :: [Int]</span>
+<span class="co">bigList = $( SF.listOfAs )</span>
+<span class="co">-}</span></code></pre>
+<p>As a more practical example, let’s consider the <code>liftM</code> family of functions, the first few I’ll write out.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">liftM ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m b
+liftM f ma <span class="fu">=</span> <span class="kw">do</span> a <span class="ot">&lt;-</span> ma
+                return (f a)
+
+<span class="ot">liftM2 ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m b <span class="ot">-&gt;</span> m c
+liftM2 f ma mb <span class="fu">=</span> <span class="kw">do</span> a <span class="ot">&lt;-</span> ma
+                    b <span class="ot">&lt;-</span> mb
+                    return (f a b)
+
+<span class="ot">liftM3 ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> d) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m b <span class="ot">-&gt;</span> m c <span class="ot">-&gt;</span> m d
+liftM3 f ma mb mc <span class="fu">=</span> <span class="kw">do</span> a <span class="ot">&lt;-</span> ma
+                       b <span class="ot">&lt;-</span> mb
+                       c <span class="ot">&lt;-</span> mc
+                       return (f a b c)</code></pre>
+<p>That’s boring! We should produce those expressions programmatically.</p>
+<p>Let’s look at the <code>DoE</code> constructor for <code>Exp</code>, which we’ll need to work with:</p>
+<pre><code>*Main&gt; :info DoE
+data Exp = ... | DoE [Stmt] | ...
+</code></pre>
+<p>Hm. Works with <code>Stmt</code>s.</p>
+<pre><code>*Main&gt; :info Stmt
+data Stmt
+  = BindS Pat Exp | LetS [Dec] | NoBindS Exp | ParS [[Stmt]]
+</code></pre>
+<p>The part of <code>do</code> notation with the <code>&lt;-</code> is a binding statement, or <code>BindS</code>. On the left of the arrow is a pattern, naturally:</p>
+<pre><code>*Main&gt; :info Pat
+data Pat
+  = LitP Lit
+  | VarP Name
+  | TupP [Pat]
+  | UnboxedTupP [Pat]
+  | ConP Name [Pat]
+  | InfixP Pat Name Pat
+  | UInfixP Pat Name Pat
+  | ParensP Pat
+  | TildeP Pat
+  | BangP Pat
+  | AsP Name Pat
+  | WildP
+  | RecP Name [FieldPat]
+  | ListP [Pat]
+  | SigP Pat Type
+  | ViewP Exp Pat
+</code></pre>
+<p>A variable pattern (what we’ll need) is a <code>VarP</code>. We may have enough to go on now:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- | Produce the body of a @liftM@ implementation. The parameter is the</span>
+<span class="co">-- number of the @liftM@.</span>
+<span class="ot">liftMBody ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
+liftMBody n <span class="fu">=</span> <span class="kw">let</span> m_names <span class="fu">=</span> take n [ mkName (<span class="ch">'m'</span> <span class="fu">:</span> [x]) <span class="fu">|</span> x <span class="ot">&lt;-</span> [<span class="ch">'a'</span><span class="fu">..</span>] ]
+                  names   <span class="fu">=</span> take n [ mkName [x]         <span class="fu">|</span> x <span class="ot">&lt;-</span> [<span class="ch">'a'</span><span class="fu">..</span>] ]
+                  binds   <span class="fu">=</span> zipWith mk_bind m_names names
+                  ret     <span class="fu">=</span> <span class="dt">NoBindS</span> (<span class="dt">AppE</span> (<span class="dt">VarE</span> (mkName <span class="st">&quot;return&quot;</span>))
+                                          (mk_apps (<span class="dt">VarE</span> (mkName <span class="st">&quot;f&quot;</span>))
+                                                   (map <span class="dt">VarE</span> names)))
+
+<span class="ot">                  mk_bind ::</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> <span class="dt">Stmt</span>
+                  mk_bind m_name name <span class="fu">=</span> <span class="dt">BindS</span> (<span class="dt">VarP</span> name) (<span class="dt">VarE</span> m_name)
+
+                  <span class="co">-- apply one expression to a list</span>
+<span class="ot">                  mk_apps ::</span> <span class="dt">Exp</span> <span class="ot">-&gt;</span> [<span class="dt">Exp</span>] <span class="ot">-&gt;</span> <span class="dt">Exp</span>
+                  mk_apps f []     <span class="fu">=</span> f
+                  mk_apps f (x<span class="fu">:</span>xs) <span class="fu">=</span> mk_apps (<span class="dt">AppE</span> f x) xs
+
+                  <span class="co">-- or</span>
+                  <span class="co">-- mk_apps = foldl AppE</span>
+              <span class="kw">in</span>
+              return <span class="fu">$</span> <span class="dt">LamE</span> (map <span class="dt">VarP</span> m_names) (<span class="dt">DoE</span> (binds <span class="fu">++</span> [ret]))
+
+<span class="ot">liftM4 ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> d <span class="ot">-&gt;</span> e)
+                  <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m b <span class="ot">-&gt;</span> m c <span class="ot">-&gt;</span> m d <span class="ot">-&gt;</span> m e
+liftM4 f <span class="fu">=</span> <span class="fu">$</span>( SF.liftMBody <span class="dv">4</span> )</code></pre>
+<p>If it type-checks, it must be right! :)</p>
+<p>We can do even better, though. TH works not only for expressions, but also for types. If we use a splice in a context where a type is expected, it should have the type <code>Q Type</code>, and GHC will splice in a type instead of an expression.</p>
+<pre><code>*Main&gt; :i Type
+data Type
+  = ForallT [TyVarBndr] Cxt Type
+  | AppT Type Type
+  | SigT Type Kind
+  | VarT Name
+  | ConT Name
+  | PromotedT Name
+  | TupleT Int
+  | UnboxedTupleT Int
+  | ArrowT
+  | ListT
+  | PromotedTupleT Int
+  | PromotedNilT
+  | PromotedConsT
+  | StarT
+  | ConstraintT
+  | LitT TyLit
+</code></pre>
+<p>Using TH at the type level, we can reduce even more boilerplate.</p>
+<p>Before we go on, we’ll start to use one more little bit of TH syntax: we can quote known names. For example, the <code>mkName &quot;return&quot;</code> above is a little silly. Instead, we can write <code>'return</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">returnName ::</span> <span class="dt">Name</span>
+returnName <span class="fu">=</span> <span class="ch">'return</span></code></pre>
+<p>To quote a type in the same way, use two quote marks.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">liftMType ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Type</span>
+liftMType n <span class="fu">=</span> <span class="kw">let</span> names <span class="fu">=</span> take n [ mkName [x] <span class="fu">|</span> x <span class="ot">&lt;-</span> [<span class="ch">'a'</span><span class="fu">..</span>] ]
+                  types <span class="fu">=</span> map <span class="dt">VarT</span> names
+                  m     <span class="fu">=</span> mkName <span class="st">&quot;m&quot;</span>
+                  res   <span class="fu">=</span> mkName <span class="st">&quot;r&quot;</span>
+                  resty <span class="fu">=</span> <span class="dt">VarT</span> res
+
+                  <span class="co">-- make nested arrows</span>
+<span class="ot">                  mk_arrs ::</span> [<span class="dt">Type</span>] <span class="ot">-&gt;</span> <span class="dt">Type</span> <span class="ot">-&gt;</span> <span class="dt">Type</span>
+                  mk_arrs []     result <span class="fu">=</span> result
+                  mk_arrs (x<span class="fu">:</span>xs) result <span class="fu">=</span> <span class="dt">AppT</span> (<span class="dt">AppT</span> <span class="dt">ArrowT</span> x)
+                                               (mk_arrs xs result)
+
+                  <span class="co">-- apply &quot;m&quot; to a type</span>
+<span class="ot">                  app_m ::</span> <span class="dt">Type</span> <span class="ot">-&gt;</span> <span class="dt">Type</span>
+                  app_m <span class="fu">=</span> <span class="dt">AppT</span> (<span class="dt">VarT</span> m)
+              <span class="kw">in</span>
+              return <span class="fu">$</span> <span class="dt">ForallT</span> (<span class="dt">PlainTV</span> m <span class="fu">:</span> <span class="dt">PlainTV</span> res <span class="fu">:</span>
+                                map <span class="dt">PlainTV</span> names)
+                               [<span class="dt">ClassP</span> <span class="ch">''</span><span class="dt">Monad</span> [<span class="dt">VarT</span> m]]
+                               (mk_arrs (mk_arrs types resty <span class="fu">:</span> map app_m types)
+                                        (app_m resty))
+
+<span class="ot">liftM5 ::</span> <span class="fu">$</span>( SF.liftMType <span class="dv">5</span> )
+liftM5 f <span class="fu">=</span> <span class="fu">$</span>( SF.liftMBody <span class="dv">5</span> )</code></pre>
+<p>But disaster strikes at <code>liftM6</code>!</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">{-</span>
+<span class="co">liftM6 :: $( SF.liftMType 6 )</span>
+<span class="co">liftM6 f = $( SF.liftMBody 6 )</span>
+<span class="co">-}</span></code></pre>
+<p>The problem is that we have not been <em>hygienic</em>. (That’s a technical term!) When creating names in <code>liftMBody</code> and <code>liftMType</code>, we’ve just used single-letter names, without worrying if these names are already in use. Well, <code>f</code> is in use, and so we fall over when we try to use it.</p>
+<p>We need a way of creating a name guaranteed to be <em>fresh</em>. Happily, the <code>Q</code> monad has just such a facility – the <code>newName</code> function:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">newName ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Name</span></code></pre>
+<p>This function is guaranteed always to return a fresh name. The string passed in is just a suggestion for the name. You could always pass the same string in but get different names each time.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- | Produce the body of a @liftM@ implementation. The parameter is the</span>
+<span class="co">-- number of the @liftM@.</span>
+<span class="ot">liftMBody' ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
+liftMBody' n <span class="fu">=</span> <span class="kw">do</span>
+  m_names <span class="ot">&lt;-</span> replicateM n (newName <span class="st">&quot;m&quot;</span>)
+  names   <span class="ot">&lt;-</span> replicateM n (newName <span class="st">&quot;a&quot;</span>)
+  <span class="kw">let</span> binds   <span class="fu">=</span> zipWith mk_bind m_names names
+      ret     <span class="fu">=</span> <span class="dt">NoBindS</span> (<span class="dt">AppE</span> (<span class="dt">VarE</span> <span class="ch">'return)</span>
+                              (mk_apps (<span class="dt">VarE</span> (mkName <span class="st">&quot;f&quot;</span>))
+                                       (map <span class="dt">VarE</span> names)))
+
+<span class="ot">      mk_bind ::</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> <span class="dt">Stmt</span>
+      mk_bind m_name name <span class="fu">=</span> <span class="dt">BindS</span> (<span class="dt">VarP</span> name) (<span class="dt">VarE</span> m_name)
+
+<span class="ot">      mk_apps ::</span> <span class="dt">Exp</span> <span class="ot">-&gt;</span> [<span class="dt">Exp</span>] <span class="ot">-&gt;</span> <span class="dt">Exp</span>
+      mk_apps <span class="fu">=</span> foldl <span class="dt">AppE</span>
+  return <span class="fu">$</span> <span class="dt">LamE</span> (map <span class="dt">VarP</span> m_names) (<span class="dt">DoE</span> (binds <span class="fu">++</span> [ret]))
+
+<span class="ot">liftM6 ::</span> <span class="fu">$</span>( SF.liftMType <span class="dv">6</span> )
+liftM6 f <span class="fu">=</span> <span class="fu">$</span>( SF.liftMBody' <span class="dv">6</span> )</code></pre>
+<p>Note that we still use <code>mkName</code> to grab <code>f</code>. That’s because <code>liftMBody</code> is expecting that <code>f</code> is bound outside of the TH code. We really <em>do</em> want to be unhygienic here, so <code>mkName</code> is the right choice.</p>
+<h2 id="quotations">Quotations</h2>
+<p>TH is more than just a facility for optimizing compile-time calculations. TH also provides a syntax for <em>quoting</em>, where GHC will take an expression you write and convert it into data of the TH <code>Exp</code> type. You write a quotation between <code>[|</code> and <code>|]</code>. A quotation conveniently has the type <code>Q Exp</code>. You can even embed splices within quotations!</p>
+<p>To continue our <code>liftM</code> example, we’ll actually use a type quotation, as expression quotations don’t really help us here. A type quotation is in brackets written <code>[t|</code> and <code>|]</code> and has type <code>Q Type</code>. Let’s see one in action:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">liftMType' ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Type</span>
+liftMType' n <span class="fu">=</span> <span class="kw">do</span>
+  names <span class="ot">&lt;-</span> replicateM n (newName <span class="st">&quot;a&quot;</span>)
+  m     <span class="ot">&lt;-</span> newName <span class="st">&quot;m&quot;</span>
+  res   <span class="ot">&lt;-</span> newName <span class="st">&quot;r&quot;</span>
+
+  <span class="kw">let</span> types <span class="fu">=</span> map varT names
+      mty   <span class="fu">=</span> varT m
+      resty <span class="fu">=</span> varT res
+
+      <span class="co">-- make nested arrows</span>
+<span class="ot">      mk_arrs ::</span> [<span class="dt">Q</span> <span class="dt">Type</span>] <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Type</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Type</span>
+      mk_arrs []     result <span class="fu">=</span> result
+      mk_arrs (x<span class="fu">:</span>xs) result <span class="fu">=</span> [t<span class="fu">|</span> <span class="fu">$</span>x <span class="ot">-&gt;</span> <span class="fu">$</span>(mk_arrs xs result) <span class="fu">|</span>]
+
+      <span class="co">-- apply &quot;m&quot; to a type</span>
+<span class="ot">      app_m ::</span> <span class="dt">Q</span> <span class="dt">Type</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Type</span>
+      app_m ty <span class="fu">=</span> [t<span class="fu">|</span> <span class="fu">$</span>mty <span class="fu">$</span>ty <span class="fu">|</span>]
+
+  forallT (map <span class="dt">PlainTV</span> (m <span class="fu">:</span> res <span class="fu">:</span> names)) (cxt [])
+          [t<span class="fu">|</span> <span class="dt">Monad</span> <span class="fu">$</span>mty <span class="ot">=&gt;</span> <span class="fu">$</span>(mk_arrs types resty) <span class="ot">-&gt;</span>
+                            <span class="fu">$</span>(mk_arrs (map app_m types) (app_m resty)) <span class="fu">|</span>]
+
+<span class="ot">liftM7 ::</span> <span class="fu">$</span>( SF.liftMType' <span class="dv">7</span> )
+liftM7 f <span class="fu">=</span> <span class="fu">$</span>( SF.liftMBody' <span class="dv">7</span> )</code></pre>
+<p>Using quotations made that definition a little less hairy. One thing to notice here is that we’re using lower-case functions like <code>varT</code> instead of uppercase data constructors like <code>VarT</code>. <code>varT</code> has type <code>Name -&gt; Q Type</code> as opposed to <code>VarT</code> with type <code>Name -&gt; Type</code>. Having things wrapped up in the <code>Q</code> monad helps us out when we’re using quotations. To see why, just follow the types! Remember that anything following a <code>$</code> must be in the <code>Q</code> monad.</p>
+<h2 id="reification">Reification</h2>
+<p>The <code>Q</code> monad provides another very important facility: the ability to inspect predefined types and functions and see their definitions, not unlike the <code>:info</code> command in GHCi. The key function here is <code>reify :: Name -&gt; Q Info</code>, where <code>Info</code> is like this:</p>
+<pre><code>*Main&gt; :info Info
+data Info
+  = ClassI Dec [InstanceDec]
+  | ClassOpI Name Type ParentName Fixity
+  | TyConI Dec
+  | FamilyI Dec [InstanceDec]
+  | PrimTyConI Name Arity Unlifted
+  | DataConI Name Type ParentName Fixity
+  | VarI Name Type (Maybe Dec) Fixity
+  | TyVarI Name Type
+</code></pre>
+<p>To inspect the output from <code>reify</code>, it’s helpful to use yet another capability of the <code>Q</code> monad: to use arbitrary I/O. TH exports the function <code>runIO :: IO a -&gt; Q a</code>, which allows any <code>IO</code> operation in the <code>Q</code> monad. This is indeed very powerful, and we’ll discuss some ramifications later. For now, it just means that we can print in the middle of a splice.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">$</span>( <span class="kw">do</span> info <span class="ot">&lt;-</span> reify <span class="ch">''</span><span class="dt">Bool</span>
+      runIO <span class="fu">$</span> print info
+      return [] )</code></pre>
+<p>Compiling the splice above gives us</p>
+<pre><code>TyConI (DataD [] GHC.Types.Bool [] [NormalC GHC.Types.False [],NormalC GHC.Types.True []] [])
+</code></pre>
+<p>What’s going on here? First, we have a top-level declaration splice. We’ve seen expression splices and type splices, but this is our first declaration splice. Like the others, a declaration splice allows you to run arbitrary code (in this case, of type <code>Q [Dec]</code>) and splices the result into your program. Because <code>Q</code> is a monad, we can use <code>do</code> notation inside of a splice. Our first action is to call <code>reify</code> on the type <code>Bool</code>, storing the result in the variable <code>info</code>. We then embed a I/O action in the <code>Q</code> monad with <code>runIO</code>. (Recall that <code>print :: Show a =&gt; a -&gt; IO ()</code>.) Finally, we must result in a <code>[Dec]</code> – a list of Haskell declarations – but in this case we don’t have any declarations to splice, so we just return the empty list.</p>
+<p>Looking at the output, we see a <code>TyConI</code> wrapping a <code>DataD</code>. <code>DataD</code> is one of the constructors of the <code>Dec</code> type.</p>
+<pre><code>*Main&gt; :info Dec
+data Dec
+  = FunD Name [Clause]
+  | ValD Pat Body [Dec]
+  | DataD Cxt Name [TyVarBndr] [Con] [Name]
+  | NewtypeD Cxt Name [TyVarBndr] Con [Name]
+  | TySynD Name [TyVarBndr] Type
+  | ClassD Cxt Name [TyVarBndr] [FunDep] [Dec]
+  | InstanceD Cxt Type [Dec]
+  | SigD Name Type
+  | ForeignD Foreign
+  | InfixD Fixity Name
+  | PragmaD Pragma
+  | FamilyD FamFlavour Name [TyVarBndr] (Maybe Kind)
+  | DataInstD Cxt Name [Type] [Con] [Name]
+  | NewtypeInstD Cxt Name [Type] Con [Name]
+  | TySynInstD Name TySynEqn
+  | ClosedTypeFamilyD Name [TyVarBndr] (Maybe Kind) [TySynEqn]
+  | RoleAnnotD Name [Role]
+</code></pre>
+<p>A <code>DataD</code> encodes a datatype declaration. The info just tells us that the definition of <code>Bool</code> is like <code>data Bool = False | True</code>.</p>
+<h2 id="larger-example">Larger example</h2>
+<p>Template Haskell can be very useful for defining boiler-plate instances. For example, consider the following class:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Sizable</span> a <span class="kw">where</span>
+<span class="ot">  size ::</span> a <span class="ot">-&gt;</span> <span class="dt">Int</span>
+  size _ <span class="fu">=</span> <span class="dv">1</span></code></pre>
+<p>Any member of this class has a known size, with a default of 1. We can define instances for some basic types, all of size 1:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Sizable</span> <span class="dt">Int</span>
+<span class="kw">instance</span> <span class="dt">Sizable</span> <span class="dt">Integer</span>
+<span class="kw">instance</span> <span class="dt">Sizable</span> <span class="dt">Bool</span>
+<span class="kw">instance</span> <span class="dt">Sizable</span> <span class="dt">Char</span></code></pre>
+<p>We could go further and start writing <code>Sizable</code> instances for other types, but the code would be <em>very</em> boring. Instead, let’s write TH functions to do the work for us.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">mapMaybeM ::</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> m (<span class="dt">Maybe</span> b)) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> m [b]
+mapMaybeM _ [] <span class="fu">=</span> return []
+mapMaybeM f (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="kw">do</span>
+  maybe_b <span class="ot">&lt;-</span> f x
+  bs      <span class="ot">&lt;-</span> mapMaybeM f xs
+  return <span class="fu">$</span> maybeToList maybe_b <span class="fu">++</span> bs
+  
+<span class="ot">deriveSizable ::</span> [<span class="dt">Name</span>] <span class="ot">-&gt;</span> <span class="dt">Q</span> [<span class="dt">Dec</span>]  <span class="co">-- type is suitable for declaration splice</span>
+deriveSizable <span class="fu">=</span> mapMaybeM deriveSizable1
+
+<span class="ot">deriveSizable1 ::</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> (<span class="dt">Maybe</span> <span class="dt">Dec</span>)
+deriveSizable1 name <span class="fu">=</span> <span class="kw">do</span>
+  info <span class="ot">&lt;-</span> reify name
+  <span class="kw">case</span> info <span class="kw">of</span>
+    <span class="dt">TyConI</span> (<span class="dt">DataD</span> _ _name tvbs cons _)   <span class="ot">-&gt;</span>
+      <span class="dt">Just</span> <span class="ot">`liftM`</span> deriveSizableData name tvbs cons
+    <span class="dt">TyConI</span> (<span class="dt">NewtypeD</span> _ _name tvbs con _) <span class="ot">-&gt;</span>
+      <span class="dt">Just</span> <span class="ot">`liftM`</span> deriveSizableData name tvbs [con]
+    _                                    <span class="ot">-&gt;</span> <span class="kw">do</span>
+      reportError <span class="fu">$</span> show name <span class="fu">++</span> <span class="st">&quot; is not a datatype&quot;</span>
+      return <span class="dt">Nothing</span>
+
+<span class="ot">deriveSizableData ::</span> <span class="dt">Name</span> <span class="ot">-&gt;</span> [<span class="dt">TyVarBndr</span>] <span class="ot">-&gt;</span> [<span class="dt">Con</span>] <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Dec</span>
+deriveSizableData name tvbs cons <span class="fu">=</span> <span class="kw">do</span>
+  clauses <span class="ot">&lt;-</span> mapM deriveSizableClause cons
+  return <span class="fu">$</span> <span class="dt">InstanceD</span> context
+                     (<span class="dt">AppT</span> (<span class="dt">ConT</span> <span class="ch">''</span><span class="dt">Sizable</span>)
+                      (foldl <span class="dt">AppT</span> (<span class="dt">ConT</span> name) tvb_tys))
+                     [<span class="dt">FunD</span> <span class="ch">'size clauses]</span>
+  <span class="kw">where</span>
+    tvb_names <span class="fu">=</span> map getTvbName tvbs
+    tvb_tys   <span class="fu">=</span> map <span class="dt">VarT</span> tvb_names
+    context   <span class="fu">=</span> map (<span class="dt">ClassP</span> <span class="ch">''</span><span class="dt">Sizable</span> <span class="fu">.</span> (<span class="fu">:</span>[]) <span class="fu">.</span> <span class="dt">VarT</span>) tvb_names
+
+    getTvbName (<span class="dt">PlainTV</span> n)    <span class="fu">=</span> n
+    getTvbName (<span class="dt">KindedTV</span> n _) <span class="fu">=</span> n
+
+<span class="ot">deriveSizableClause ::</span> <span class="dt">Con</span> <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Clause</span>
+deriveSizableClause (<span class="dt">NormalC</span> con_name stys) <span class="fu">=</span> <span class="kw">do</span>
+  field_names <span class="ot">&lt;-</span> mapM (const <span class="fu">$</span> newName <span class="st">&quot;x&quot;</span>) stys
+  clause [conP con_name (map varP field_names)]
+         (normalB [<span class="fu">|</span> <span class="dv">1</span> <span class="fu">+</span> sum <span class="fu">$</span>(
+           listE (map (\x <span class="ot">-&gt;</span> [<span class="fu">|</span> size <span class="fu">$</span>(varE x) <span class="fu">|</span>]) field_names)
+         ) <span class="fu">|</span>])
+         []
+deriveSizableClause (<span class="dt">RecC</span> con_name vstys)
+  <span class="fu">=</span> <span class="kw">let</span> stys <span class="fu">=</span> map strip_fst vstys <span class="kw">in</span>
+    deriveSizableClause (<span class="dt">NormalC</span> con_name stys)
+  <span class="kw">where</span>
+    strip_fst (_,b,c) <span class="fu">=</span> (b,c)
+deriveSizableClause (<span class="dt">InfixC</span> sty1 con_name sty2)
+  <span class="fu">=</span> deriveSizableClause (<span class="dt">NormalC</span> con_name [sty1, sty2])
+deriveSizableClause (<span class="dt">ForallC</span> _ _ con) <span class="fu">=</span> deriveSizableClause con</code></pre>
+<p>Now, having done all of that, it is easy to generate new <code>Sizable</code> instances:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">$</span>( SF.deriveSizable [<span class="ch">''</span><span class="dt">Maybe</span>, <span class="ch">''</span>[], <span class="ch">''</span><span class="dt">Either</span>] )
+
+<span class="ot">trySize ::</span> <span class="dt">Int</span>
+trySize <span class="fu">=</span> SF.size (<span class="dt">Just</span> (<span class="dt">Just</span> <span class="st">&quot;abc&quot;</span>))</code></pre>
+<p>This “deriving” use-case of TH is rather prevalent, so much so that GHC allows you to drop the <code>$</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell">SF.deriveSizable [<span class="ch">''</span><span class="dt">Ordering</span>]</code></pre>
+<hr />
+<p><code>Generated 2014-12-04 13:37:45.160867</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>

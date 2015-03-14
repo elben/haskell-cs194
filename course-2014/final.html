@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194: Final project</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="./css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="./">Home</a> | <a href="./lectures.html">Lectures &amp; Assignments</a> | <a href="./policies.html">Policies</a> | <a href="./resources.html">Resources</a> | <a href="./final.html">Final Project</a> | <a href="./spring13/index.html">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h2 id="overviewimportant-dates">Overview/important dates</h2>
+<p>For CIS 194 you will complete a final project which will tie together some of the things you have learned and give you some practical Haskell development experience. The expectation is for you to spend around <strong>15-20 hours</strong> working on the project. Here are some important dates:</p>
+<ul>
+<li><strong>Friday, November 21</strong> – Project proposals due</li>
+<li><strong>Friday, December 5</strong> – Checkpoint submission</li>
+<li><strong>Thursday, December 11</strong>, 12noon-2pm – Final project demos, Levine Lobby</li>
+<li><strong>Monday, December 15</strong> – Final project submission deadline</li>
+<li><strong>Thursday, December 18</strong>, 2:30pm-4:30pm – Final project demos, Greenberg lounge, 1st floor Skirkanich</li>
+</ul>
+<p>Get started early!</p>
+<h2 id="format">Format</h2>
+<p>You may work by yourself, or in groups of up to <em>three</em> students. Note, however, that projects for groups of three will be held to somewhat higher standards than those for individuals or pairs. Groups of five are <em>right out</em>.</p>
+<p>There are two types of projects you may complete:</p>
+<ol style="list-style-type: decimal">
+<li><p>Application/library</p>
+<p>For your project you may write some sort of Haskell application or library which does something fun/useful/interesting. Your imagination is the limit. Some possibilities/suggestions include:</p>
+<ul>
+<li><p>A program to play a game (like tic-tac-toe, Connect 4, othello, gomoku, poker, mancala, …) against the user.</p></li>
+<li><p>A program to solve puzzles like sudoku or kenken.</p></li>
+<li><p>A program to generate random mazes and let the user interactively solve them, or to solve mazes input by the user.</p></li>
+<li><p>An implementation of some interesting data structure like red-black trees, 2-3-4 trees, binomial heaps, or Fibonacci heaps.</p></li>
+<li><p>An parser and interpreter for a small programming language, such as a <a href="http://www.program-analysis.com/while.html">while language</a>.</p></li>
+<li><p>A raytracer.</p></li>
+<li><p>Take an interesting program you have written in some other language, and figure out how to port/re-implement it in idiomatic Haskell.</p></li>
+<li><p>Write an IRC bot offering functionality of your choice. You might want to look at existing Haskell IRC libraries such as fastirc, simpleirc, irc, ircbot, etc.</p></li>
+<li><p>Write an alternative to a common command-line tool in Haskell; something simple like grep or netcat is OK. For the intrepid, consider implementing an ssh client, HTTP daemon, or similar.</p></li>
+<li><p>Do something cool with APIs available on the Internet. (A Twitter bot, perhaps?)</p></li>
+<li><p>Write a serverside library in Haskell to streamline pragmatic access to some dataset over an HTTP API.</p></li>
+<li><p>Find an existing web service who does not have an official Haskell wrapper and write one yourself. A good example that came up recently in a personal project is <a href="https://www.lob.com/">Lob</a>.</p></li>
+<li><p>Write a toolkit to normalize/transform data: this toolkit would include, for an example, data structures/functions to take a messily-formatted phone number and normalize it to <a href="http://en.wikipedia.org/wiki/E.164">E.164</a>, data structures/functions to take a human name and store it in a standard format (<a href="http://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/">caveat</a>), data structures/functions to normalize US postal addresses, etc. This could be massively helpful to other developers who use Haskell for scraping and data processing.</p></li>
+<li><p>Build a parser and theorem prover for intuitionistic propositional logic.</p></li>
+<li><p>Build a parser, type checker, and interpreter for the lambda calculus.</p></li>
+<li><p>Whatever else your creativity suggests!</p></li>
+</ul></li>
+<li><p>Open-source contribution</p>
+<p>For your project you may choose an open-source library or application on <a href="http://haskell.org/hackage/">Hackage</a> to contribute to. Contributions may include bug fixes, new features, and/or documentation. Here are a few suggestions—these are projects whose authors/maintainers have indicated that there would be good ways for beginning Haskell students to contribute. (But you are free to work on any project you like, as long as you can find a reasonable way to contribute.) If you want to try contributing to one of these projects, you should contact the relevant person(s) and discuss it with them prior to submitting your project proposal.</p>
+<p>Open-source projects students have contributed to in prior years include a package to efficiently compute prime numbers using a mutable-array-based sieve and Haskell bindings to the Kinect.</p>
+<ul>
+<li><p><a href="http://bitspiration.com/news/developer/flowbox-fx/">Flowbox</a> (Contact: Wojciech Daniło, <code>wojciech.danilo at gmail dot com</code>)</p>
+<p>From Wojciech: We are creating Flowbox – a dataflow programming framework intended for high-performance data processing and analysis. Flowbox facilitates the processing of any kind of data – like sound, images or big data in an easy and visual way. It is based on our programming language – Luna, which has two interchangeable representations – visual and textual one – and you can switch between them in any time.</p>
+<p>On top of it we have built an example use case for the platform – Flowbox FX, intended for high-end image and video post processing. We have some strong background in the VFX industry (I was, for example, leading for a few years the R&amp;D department in one of the biggest film studios in Europe – in Alvernia Studios).</p>
+<p>A few months ago we went to San Francisco and Los Angeles and were talking to some big studios out there, like Dreamworks, Tipett Studio or Rythm and Hues to name few. Right now we are releasing our commercial product – the Flowbox FX and it is being tested in some facilities. But everything we are doing is based on our programming language. The visual representation is easy to grasp and suitable for non-programmers to create advanced components – like fire or smoke simulations. And, we are strongly thinking about releasing the language as an open source project – so far I’m sure we will release it free for everyone.</p>
+<p>Luna (the language) is very interesting – it is a pure functional, lazy, object oriented one (with immutable objects) and some funny things, like easier monad support built into compiler. On the beginning we were compiling it to Haskell, and right now we are slowly switching to compile it to Haskell core – and this will be the final solution we were looking for.</p>
+<p>Contact me if you are interested in learning more and contributing.</p></li>
+<li><p><a href="http://gibiansky.github.io/IHaskell/demo.html">IHaskell</a> (Contact: Andrew Gibiansky, <code>andrew.gibiansky at gmail dot com</code>)</p>
+<p>IHaskell is a platform for interactive evaluation and analysis of Haskell expressions. Andrew suggests the following says a student from CIS194 might contribute:</p>
+<ul>
+<li><p>Try to get IHaskell working on 7.10 before it is released – not terribly hard, probably, but requires getting 7.10 installed and maybe making sure some of the IHaskell dependencies work on 7.10.</p></li>
+<li><p>Implementing a smarter autocomplete: scan sources of popular libraries on Hackage, collect statistics about identifier and module usage, and suggest common ones before less common ones.</p></li>
+<li><p>Take on some of the more interesting issues, such as adding <code>:m -MyModule</code> to remove a module from scope, making a comprehensive test suite (and fixing some issues with the previous one), allowing inline template Haskell, parsing and using LANGUAGE pragmas, and others.</p></li>
+<li><p>Adding ihaskell-display package support for some common libraries.</p></li>
+<li><p>Working with me to hammer out a few uses for interactive widgets. I have a proof of concept interactive widget for Parsec working, where if you display a <code>Parsec a</code> (with Show a), it pops up a textbox and anything you type into the textbox is asynchronously and automatically parsed, results are displayed, and errors are highlighted. Many other interactive widgets could be useful, but haven’t been developed because I lack the time.</p></li>
+<li><p>Using chrisdone’s <code>present</code> library in IHaskell to lazily show data types for debugging.</p></li>
+<li><p>Using TypeHoles to implement smarter completion for types and values.</p></li>
+</ul>
+<p>Andrew is clear in his email to me that he is eager to provide mentorship through the process.</p></li>
+<li><p><a href="http://github.com/creswick/chatter">Chatter</a> (Contact: Rogan Creswick, <code>creswich at gmail dot com</code>)</p>
+<p>There are a handful of <a href="http://github.com/creswick/chatter/issues">tasks</a> on Chatter (an NLP toolkit) that might work.</p>
+<p>Setting up a framework for evaluating performance might be a fun and cleanly-separable task of a good size (it’d mostly mean wiring up existing APIs, defining a ui and optionally learning about how lazy evaluation impacts taking timing measurements in Haskell and using criterion).</p></li>
+<li><p>Mateusz Kowalczyk (<code>fuuzetsu at fuuzetsu dot co dot uk</code>) has several ideas. He says:</p>
+<ul>
+<li><p><a href="https://github.com/Fuuzetsu/tsuntsun">tsuntsun</a> is a front-end to <a href="http://code.google.com/p/tesseract-ocr/">tesseract</a> OCR software. Possible work involves improving the interface (hey, I’m a programmer not a designer…), adding features such as on-the-fly translation through Bing or another service (this seems like a nice little project, you end up with a lib to talk to the service even if they don’t get to integrate it), add support for history (probably not enough for a project by itself) or if the student is more ambitious, automatic region detection as boasted by the (proprietary) software <a href="http://kanjitomo.net/">KanjiTomo</a>. So there’s talking to the service, messing around with a GUI (gtk2hs) or work with images/pattern recognition (I can only help with Haskell side here). The plus side is that the existing code is pretty primitive if they choose to do something with the GUI, no 7-layer deep monad transformers.</p></li>
+<li><p><a href="http://hackage.haskell.org/package/free-game">free-game</a> is a game library but it is pretty small in what it offers: you get some basic stuff but it’s not a full-blown suite. A project could involve writing useful libraries around it, I could come up with some specifics if there’s interest. I can’t offer help with hacking on free-game itself but I wouldn’t mind overseeing any libs that spawn around it.</p></li>
+<li><p>For a while now I have quite an annoyance with criterion; it produces those pretty HTML + JS graphs you can mouse-over and stuff, right? The problem is that they are absolutely useless to the point of hanging your browser if you have more than a few benchmarks on the page. I think a nice project would be developing a reporting package with ‘diagrams’ or something which takes Criterion’s output (CSV) and spits outs images we can actually inspect. This seems like something a student can get on with pretty easily and take it as far as they wish while having practical value at the same time.</p></li>
+</ul>
+<p>I wish I could offer more ideas but it’s hard to come up with something that will fit into 20 hours including getting the feel for things and that might be interesting to the student, have some value to the rest of us and doesn’t feel like an exercise. I am a big fan of “learn by actually hacking stuff” approach, just not in such a (relatively) small timescale ;).</p>
+<p>I don’t mind overseeing someone if they happen to pick anything I mentioned here or something that interests me. I don’t mind volunteering as “overseer” for some other project if the student is willing and is likely to join the community for longer.</p></li>
+<li><p><a href="http://hackage.haskell.org/package/robot">Robot</a> (Contact: Chris Wong, <code>lambda.fairy at gmail dot com</code>)</p>
+<p>From Chris: I maintain a GUI testing package called Robot. It’s a simple library with clear semantics.</p>
+<p>Some project ideas, from easiest to hardest:</p>
+<ul>
+<li><p>Taking screenshots. XHB exposes a <a href="http://hackage.haskell.org/package/xhb-0.5.2014.4.10/docs/Graphics-XHB-Gen-Xproto.html#v:getImage"><code>GetImage</code></a> call; it shouldn’t be too much work integrating that into the library.</p></li>
+<li><p>Adding a configurable delay between operations. This involves some work with monads (<code>ReaderT</code> specifically).</p></li>
+<li><p>Windows and Mac support. Some good practice with Cabal and the FFI here.</p></li>
+<li><p><a href="http://www.semicomplete.com/projects/xdotool/">xdotool</a> does a few things, like searching for windows by title, that I’d like to see in Robot. Porting some of these features over sounds like a good (albeit open-ended) project.</p></li>
+</ul></li>
+<li><p>Ernesto Rodriguez (<code>neto at netowork dot me</code>) is a Master’s student at Utrecht University. He supplies the following ideas:</p>
+<p>A project that might be good for a introductory FP course is Cryptographer. Its objective is to encrypt data in html files so you can publicly share those files but only people with the password can see the contents. The nice thing is that you can send one of those files to anyone since it’s html so all you need is a browser to open it. Anyways, in my wishlist (and future steps) for this tool I have the following:</p>
+<ul>
+<li><p>When appending data to an encrypted file, add checks to ensure the provided decryption key is correct (currently, if you give a wrong key it simply decrypts gibberish and appends your content to it)</p></li>
+<li><p>Add support for data other than text. For example, embedding images and files by encrypting the base64 encoding of their bits.</p></li>
+<li><p>I use the tool primarily for passwords, so would be nice to add some tools for them. In particular, it would be nice if the encrypted file could contain buttons which one can click to copy passwords into clipboard. Also if it could have a <code>setTimeout()</code> somewhere so the file gets encrypted again after some time automatically.</p></li>
+<li><p>Add more ciphers. Currently I encrypt data using TwoFish. I use it because I like the cipher but also because since I use GHCJS to generate the html file that performs decryption. The cipher must thus be written 100% in Haskell (or do some foreign calls to an external JavaScript library). I used to support BlowFish as well but I removed it since the cipher is not 100% secure.</p></li>
+<li><p>A UI (both html and desktop) would be nice. Even if encryption could be done 100% on a HTML UI would also be advanced. But in order for appending to work over the net, code has to be added so files are retrieved via Ajax (not wget as I currently do it :P).</p></li>
+<li><p>Improve the command line interface. I use my own experimental extension of <code>CmdArgs</code> for the command line (which I wrote only to try GHC Generics out). An ambitious student could consider improving that tool or simply using standard cmdargs for the command line arguments.</p></li>
+</ul>
+<p>The most <code>advanced</code> library I use in the project is Pipes which is easy to gasp and a lot of the code is pure code (ie. encryption algorithms, generating html, ect) so that makes things simple as well.</p></li>
+</ul></li>
+</ol>
+<h2 id="project-proposal">Project proposal</h2>
+<p>You must submit a project proposal by <strong>Friday, November 21</strong>. This gives us a chance to discuss your proposal and ensure it will make a suitable project. You are encouraged to submit your proposal earlier than November 21 if you already have an idea. You should also feel free to submit several project proposals if you would like help deciding which is most suitable.</p>
+<p>To submit your proposal, send an email of a few paragraphs to me (<code>eir at cis dot upenn dot edu</code>) with the subject “CIS 194 final project proposal”. Try to answer the questions: What do you propose to do? What do you hope to learn from the project? What are some concrete goals, i.e. how will we judge the success of your project?</p>
+<p>There is no formal formatting requirement for the proposal, but I will ask you to revise proposals that are too vague. I should have a decent idea of what the final product will look like, so that way, the TAs and I can evaluate if you achieve what you set out to. Your proposal must also address what to expect at the checkpoint, and must explicitly discuss how you plan on testing your work (that is, via unit tests, or QuickCheck, or …).</p>
+<h2 id="checkpoint-submission">Checkpoint submission</h2>
+<p>By midnight on <strong>Friday, December 5</strong>, you must submit your progress toward your final project. In this submission must be a README that describes the progress you have made and what we should be looking for in your work. Your submission <strong>must</strong> compile and run, doing <em>something</em> interesting. Of course, your project will be incomplete at this stage, but what you show us should convince us that it’s likely you will be able to finish on time.</p>
+<p>(In rare cases, it may be appropriate for a checkpoint submission not to compile. If you believe this applies to you, you must email me no later than Wednesday, December 3, explaining why you think it’s appropriate that your checkpoint version not compile and/or run.)</p>
+<p>Note that <em>the checkpoint submission will constitute part of your final project grade</em>, though there’s no need to stress out about it. In particular, we will <em>not</em> be grading style at the checkpoint. Indeed, we hope not to look at your code here, but instead to run your program and see what progress you’ve made that way.</p>
+<p>The checkpoint is also a good opportunity to ask questions of what a good next step would be. Include these questions in your README.</p>
+<p>The purpose of the checkpoint is twofold: to make sure you get started on your project before the last minute, and to provide a convenient space for you to ask questions and get some direction and feedback.</p>
+<h2 id="final-submission">Final submission</h2>
+<p>Final submissions are due by <strong>Monday, December 15</strong>.</p>
+<p>Your final submission should consist of any and all code you have written, along with a document describing your project (a simple text file is fine). The document should contain</p>
+<ul>
+<li><p>a description of your project and what you accomplished;</p></li>
+<li><p>instructions on how to compile/run/try out/play with your project;</p></li>
+<li><p>a description of work you did and things you learned along the way.</p></li>
+</ul>
+<p>Submit your project as a compressed file (<code>.tar.gz</code>, <code>.zip</code>, etc.) through Canvas. If you contributed to an external project, then your submission should contain a specific listing of what, exactly, were your contributions. The code itself can be on, e.g., GitHub – you don’t have to submit a copy.</p>
+<p>Grading will be as follows:</p>
+<ul>
+<li><p>Checkpoint (25%). Did you make some progress on your project by the time of the checkpoint meeting?</p></li>
+<li><p>Style (25%). Your project should use good Haskell style and be well-documented.</p></li>
+<li><p>Correctness (25%). Your project should be free of compilation errors and should correctly accomplish whatever it is supposed to accomplish. This means that if the deadline is looming, your time would be better spent fixing bugs in what you already have than adding one last feature.</p></li>
+<li><p>Effort/accomplishment (25%). We will be looking for evidence that you put energy and effort (~15-20 hours) into your project and that you have learned something. This is where the document you submit along with your project comes in: be sure to use it to highlight work you did and things you learned, especially if it is not obvious from looking at the final product. For example, if you spent two hours trying an approach that ultimately did not work, you should write about that and what you learned from the experience. However, we will not necessarily look with sympathy on <em>unnecessary</em> work: for example, if you spent five hours trying to track down a bug without asking for help, that’s just plain silly stubbornness. If you are stuck on something, please ask for help. We want you to spend your time making progress on your project, not banging your head against a wall (although a small amount of head-banging can be healthy).</p></li>
+</ul>
+<h2 id="project-demos">Project demos</h2>
+<p>You will demonstrate your working project at <strong>either</strong> of the demo days listed at the top:</p>
+<ul>
+<li><strong>Thursday, December 11</strong>, 12noon-2pm – Final project demos, Levine Lobby</li>
+<li><strong>Thursday, December 18</strong>, 2:30pm-4:30pm – Final project demos, Greenberg lounge, 1st floor Skirkanich</li>
+</ul>
+<p>You do <strong>not</strong> need to attend both, though you’re welcome to. A project demo should show off your hard work, show us what’s interesting about your project, and highlight a particularly challenging bit of code. I do not expect PowerPoint slides!</p>
+<p>The demo day on Dec. 11 is a combined demo with students from the other CIS19x courses. Lunch will be served. The demos will be presented in a “science fair” format, with folks wandering around from presenter to presenter. Come with a laptop and show off your work. Although this date is before the final deadline, I expect the work you’re showing to be close to complete. If you are not ready in time, wait to demo until the following week! Conversely, you can always demo your work, get feedback from the instructors, and then incorporate that feedback into your submission.</p>
+<p>The demo day on Dec. 18 is a more traditional presentation format, with you standing at the front of the room on a projector. I expect demos to run 5-10 minutes.</p>
+<p>The demo is a <em>required</em> part of the final project. Please be in touch now if you cannot make either of these dates.</p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>
