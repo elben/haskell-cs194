@@ -7,6 +7,9 @@ import Test.HUnit
 import Data.List
 import Control.Monad
 
+x :: Int
+x = 1
+
 -----------------------------
 -- HUnit
 -----------------------------

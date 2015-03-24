@@ -1,12 +1,11 @@
-module Nomad where
+module Monad where
 
 -- Hide monadic functions
-import Prelude hiding ((>>=), return, (>>))
+import Prelude hiding ((>>=), return, (>>), Monad)
 
+-- Playing around with Monad.
 
--- Playing around with Nomad, which is the Monad definition.
-
-class Nomad m where
+class Monad m where
   return :: a -> m a
 
   -- bind
@@ -18,7 +17,7 @@ class Nomad m where
   -- Equiv:
   -- (>>) m1 m2 = (>>=) m1 (\_ -> m2)
 
-instance Nomad Maybe where
+instance Monad Maybe where
   return = Just
   -- Equiv:
   -- return a = Just a
@@ -41,7 +40,7 @@ maybeEx4 :: Maybe Int
 maybeEx4 = Just 3 >> Just 4
 
 
-instance Nomad [] where
+instance Monad [] where
   return a = [a]
 
   -- (>>=) :: m a -> (a -> m b) -> m b
