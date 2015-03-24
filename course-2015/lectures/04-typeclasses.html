@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset='UTF-8'">
+  <title>CIS194</title>
+
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+  <div id="canvas">
+    <div id="nav"><p><strong>CIS 194</strong>: <a href="../">Home</a> | <a href="../lectures.html">Lectures &amp; Assignments</a> | <a href="../policies.html">Policies</a> | <a href="../resources.html">Resources</a> | <!--[Final Project](/final.html) |--> <a href="../fall14/">Older version</a></p></div>
+
+    <div id="content">
+      
+      <h1 id="type-classes">Type Classes</h1>
+<p>CIS 194 Week 4<br />11 February 2015</p>
+<p>Before we get down to the business of the day, we need a little header information to get us going:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span></code></pre>
+<p>That’s a so-called language pragma. GHC includes many features which are not part of the standardized Haskell language. To enable these features, we use language pragmas. There are <em>lots</em> of these language pragmas available — we’ll see only a few over the course of the semester.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Data.Char</span>  ( isUpper, toUpper )
+<span class="kw">import </span><span class="dt">Data.Maybe</span> ( mapMaybe )
+<span class="kw">import </span><span class="dt">Text.Read</span>  ( readMaybe )</code></pre>
+<p>Though you never knew it, there are two different forms of polymorphism. The polymorphism we have seen so far is parametric polymorphism, which we can also call <em>universal</em> polymorphism (though that isn’t a standard term). A function like <code>length :: [a] -&gt; Int</code> works for <em>any</em> type <code>a</code>. But, sometimes we don’t want to be universal. Sometimes, we want a function to work for several types, but not every type.</p>
+<p>A great example of this is <code>(+)</code>. We want to be able to add <code>Int</code>s and <code>Integer</code>s and <code>Double</code>s, but not <code>Maybe Char</code>s. This sort of polymorphism – where multiple types are allowed, but not every type – is called <em>ad-hoc</em> polymorphism. Haskell uses type classes to implement ad-hoc polymorphism.</p>
+<p>A Haskell <em>type class</em> defines a set of operations. We can then choose several types that support those operations via <em>class instances</em>. (<em>Note:</em> These are <strong>not</strong> the same as object-oriented classes and instances!) Intuitively, type classes correspond to <em>sets of types</em> which have certain operations defined for them.</p>
+<p>As an example, let’s look in detail at the <code>Eq</code> type class.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Eq</span> a <span class="kw">where</span>
+<span class="ot">  (==) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+<span class="ot">  (/=) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></code></pre>
+<p>We can read this as follows: <code>Eq</code> is declared to be a type class with a single (type) parameter, <code>a</code>. Any type <code>a</code> which wants to be an <em>instance</em> of <code>Eq</code> must define two functions, <code>(==)</code> and <code>(/=)</code>, with the indicated type signatures. For example, to make <code>Int</code> an instance of <code>Eq</code> we would have to define <code>(==) :: Int -&gt; Int -&gt; Bool</code> and <code>(/=) :: Int -&gt; Int -&gt; Bool</code>. (Of course, there’s no need, since the standard Prelude already defines an <code>Int</code> instance of <code>Eq</code> for us.)</p>
+<p>Let’s look at the type of <code>(==)</code> again:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">(==) ::</span> <span class="dt">Eq</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></code></pre>
+<p>The <code>Eq a</code> that comes before the <code>=&gt;</code> is a <em>type class constraint</em>. We can read this as saying that for any type <code>a</code>, <em>as long as <code>a</code> is an instance of <code>Eq</code></em>, <code>(==)</code> can take two values of type <code>a</code> and return a <code>Bool</code>. It is a type error to call the function <code>(==)</code> on some type which is not an instance of <code>Eq</code>. If a normal polymorphic type is a promise that the function will work for whatever type the caller chooses, a type class polymorphic function is a <em>restricted</em> promise that the function will work for any type the caller chooses, <em>as long as</em> the chosen type is an instance of the required type class(es).</p>
+<p>The important thing to note is that when <code>(==)</code> (or any type class method) is used, the compiler uses type inference to figure out <em>which implementation of <code>(==)</code> should be chosen</em>, based on the inferred types of its arguments. The specific instance that is chosen is always known statically. This is very important since, as we saw with parametric polymorphism, types are erased at runtime.</p>
+<p>To get a better handle on how this works in practice, let’s make our own type and declare an instance of <code>Eq</code> for it.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Foo</span> <span class="fu">=</span> <span class="dt">F</span> <span class="dt">Int</span> <span class="fu">|</span> <span class="dt">G</span> <span class="dt">Char</span>
+
+<span class="kw">instance</span> <span class="dt">Eq</span> <span class="dt">Foo</span> <span class="kw">where</span>
+  (<span class="dt">F</span> i1) <span class="fu">==</span> (<span class="dt">F</span> i2) <span class="fu">=</span> i1 <span class="fu">==</span> i2
+  (<span class="dt">G</span> c1) <span class="fu">==</span> (<span class="dt">G</span> c2) <span class="fu">=</span> c1 <span class="fu">==</span> c2
+  _ <span class="fu">==</span> _ <span class="fu">=</span> <span class="dt">False</span>
+
+  foo1 <span class="fu">/=</span> foo2 <span class="fu">=</span> not (foo1 <span class="fu">==</span> foo2)</code></pre>
+<p>It’s a bit annoying that we have to define both <code>(==)</code> and <code>(/=)</code>. In fact, type classes can give <em>default implementations</em> of methods in terms of other methods, which should be used whenever an instance does not override the default definition with its own. So we could imagine declaring <code>Eq</code> like this:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Eq</span> a <span class="kw">where</span>
+<span class="ot">  (==) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+<span class="ot">  (/=) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+  x <span class="fu">/=</span> y <span class="fu">=</span> not (x <span class="fu">==</span> y)</code></pre>
+<p>Now anyone declaring an instance of <code>Eq</code> only has to specify an implementation of <code>(==)</code>, and they will get <code>(/=)</code> for free. But if for some reason they want to override the default implementation of <code>(/=)</code> with their own, they can do that as well.</p>
+<p>In fact, the <code>Eq</code> class is actually declared like this:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Eq</span> a <span class="kw">where</span>
+  (<span class="fu">==</span>),<span class="ot"> (/=) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>
+  x <span class="fu">==</span> y <span class="fu">=</span> not (x <span class="fu">/=</span> y)
+  x <span class="fu">/=</span> y <span class="fu">=</span> not (x <span class="fu">==</span> y)</code></pre>
+<p>This means that when we make an instance of <code>Eq</code>, we can define <em>either</em> <code>(==)</code> or <code>(/=)</code>, whichever is more convenient; the other one will be automatically defined in terms of the one we specify. (However, we have to be careful: if we don’t specify either one, we get infinite recursion!)</p>
+<p>As it turns out, <code>Eq</code> (along with a few other standard type classes) is special: GHC is able to automatically generate instances of <code>Eq</code> for us. Like so:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Foo'</span> <span class="fu">=</span> <span class="dt">F'</span> <span class="dt">Int</span> <span class="fu">|</span> <span class="dt">G'</span> <span class="dt">Char</span>
+  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</code></pre>
+<p>This tells GHC to automatically derive instances of the <code>Eq</code>, <code>Ord</code>, and <code>Show</code> type classes for our data type <code>Foo</code>. This <code>deriving</code> mechanism is baked into Haskell – you can’t make your own class and tell GHC how to derive instances. The full list of derivable classes is <code>Eq</code>, <code>Ord</code>, <code>Enum</code>, <code>Ix</code>, <code>Bounded</code>, <code>Show</code>, and <code>Read</code>. Not each of these is applicable to any datatype, though. GHC does provide extensions that allow other classes to be derived; see the GHC manual for details.</p>
+<p><strong>Type classes and Java interfaces</strong></p>
+<p>Type classes may seem similar to Java interfaces. Both define a set of types/classes which implement a specified list of operations. However, there are a couple of important ways in which type classes are more general than Java interfaces:</p>
+<ol style="list-style-type: decimal">
+<li><p>Type classes often come with a set of mathematical laws that <em>should</em> be followed by all instances. Examples of this include associativity and commutativity of addition in the <code>Num</code> type class. We will see more of this shortly when we examine type classes stemming ideas in Category Theory.</p></li>
+<li><p>When a Java class is defined, any interfaces it implements must be declared. Type class instances, on the other hand, are declared separately from the declaration of the corresponding types, and can even be put in a separate module (these are called orphan instances).</p></li>
+<li><p>The types that can be specified for type class methods are more general and flexible than the signatures that can be given for Java interface methods, especially when <em>multi-parameter type classes</em> enter the picture. For example, consider a hypothetical type class</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Blerg</span> a b <span class="kw">where</span>
+<span class="ot">  blerg ::</span> a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">Bool</span></code></pre>
+<p>Using <code>blerg</code> amounts to doing <em>multiple dispatch</em>: which implementation of <code>blerg</code> the compiler should choose depends on <em>both</em> the types <code>a</code> and <code>b</code>. There is no easy way to do this in Java. Furthermore, Haskell has the concept of <em>Functional Dependencies</em>. Say we want a type class for extracting elements from containers:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Extract</span> a b <span class="fu">|</span> a <span class="ot">-&gt;</span> b <span class="kw">where</span>
+<span class="ot">  extract ::</span> a <span class="ot">-&gt;</span> b</code></pre>
+<p>Here, we have introduced a Functional Dependency stating that the type <code>a</code> uniquely determines <code>b</code>. We can now define an instance of this class that extracts the first element from a tuple:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Extract</span> (a, b) a <span class="kw">where</span>
+  extract (x, y) <span class="fu">=</span> x</code></pre>
+<p>However, because of the functional dependency, we cannot create the instance:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Extract</span> (a, b) b <span class="kw">where</span><span class="fu">...</span></code></pre>
+<p>because the type <code>(a,b)</code> uniquely determines <code>a</code>.</p>
+<p>Haskell type classes can also easily handle binary (or ternary, or …) methods, as in</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Num</span> a <span class="kw">where</span>
+<span class="ot">  (+) ::</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> a
+  <span class="fu">...</span></code></pre>
+<p>There is no nice way to do this in Java: for one thing, one of the two arguments would have to be the “privileged” one which is actually getting the <code>(+)</code> method invoked on it, and this asymmetry is awkward. Furthermore, because of Java’s subtyping, getting two arguments of a certain interface type does <em>not</em> guarantee that they are actually the same type, which makes implementing binary operators such as <code>(+)</code> awkward (usually requiring some runtime type checks).</p></li>
+</ol>
+<p><strong>Standard type classes</strong></p>
+<p>Here are some other standard type classes you should know about:</p>
+<ul>
+<li><p><a href="http://hackage.haskell.org/package/base-4.7.0.2/docs/Prelude.html#t:Ord">Ord</a> is for types whose elements can be <em>totally ordered</em>, that is, where any two elements can be compared to see which is less than the other. It provides comparison operations like <code>(&lt;)</code> and <code>(&lt;=)</code>, and also the <code>compare</code> function.</p></li>
+<li><p><a href="http://hackage.haskell.org/package/base-4.7.0.2/docs/Prelude.html#t:Num">Num</a> is for “numeric” types, which support things like addition, subtraction, and multipication. One very important thing to note is that integer literals are actually type class polymorphic:</p>
+<pre><code>Prelude&gt; :t 5
+5 :: Num a =&gt; a
+</code></pre>
+<p>This means that literals like <code>5</code> can be used as <code>Int</code>s, <code>Integer</code>s, <code>Double</code>s, or any other type which is an instance of <code>Num</code> (<code>Rational</code>, <code>Complex Double</code>, or even a type you define…)</p></li>
+<li><p><a href="http://hackage.haskell.org/package/base-4.7.0.2/docs/Prelude.html#t:Show">Show</a> defines the method <code>show</code>, which is used to convert values into <code>String</code>s. This is what GHCi uses to display values.</p></li>
+<li><p><a href="http://hackage.haskell.org/package/base-4.7.0.2/docs/Prelude.html#t:Read">Read</a> is the dual of <code>Show</code>.</p></li>
+<li><p><a href="http://hackage.haskell.org/package/base-4.7.0.2/docs/Prelude.html#t:Integral">Integral</a> represents whole number types such as <code>Int</code> and <code>Integer</code>.</p></li>
+</ul>
+<h1 id="monoids">Monoids</h1>
+<p>Consider some type <code>m</code> and an operation <code>(&lt;&gt;) :: m -&gt; m -&gt; m</code>. The type and operation form a <em>monoid</em> when</p>
+<ol style="list-style-type: decimal">
+<li><p>there exists a particular element <code>mempty :: m</code> such that <code>x &lt;&gt; mempty == x</code> and <code>mempty &lt;&gt; x == x</code>; and</p></li>
+<li><p>the operation <code>(&lt;&gt;)</code> is associative. That is, <code>(a &lt;&gt; b) &lt;&gt; c == a &lt;&gt; (b &lt;&gt; c)</code>.</p></li>
+</ol>
+<p>Monoids actually come from a field of abstract mathematic called Category Theory, but they are ubiquitous in programming. This is true in all languages, but we make their presence in Haskell much more explicit, through the use of a type class:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Monoid</span> m <span class="kw">where</span>
+<span class="ot">  mempty  ::</span> m
+<span class="ot">  mappend ::</span> m <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> m
+
+<span class="ot">  mconcat ::</span> [m] <span class="ot">-&gt;</span> m     <span class="co">-- this can be omitted from Monoid instances</span>
+  mconcat <span class="fu">=</span> foldr mappend mempty
+
+<span class="ot">(&lt;&gt;) ::</span> <span class="dt">Monoid</span> m <span class="ot">=&gt;</span> m <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> m    <span class="co">-- infix operator for convenience</span>
+(<span class="fu">&lt;&gt;</span>) <span class="fu">=</span> mappend</code></pre>
+<p>There are a great many <code>Monoid</code> instances available. Perhaps the easiest one is for lists:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Monoid</span> [a] <span class="kw">where</span>
+  mempty  <span class="fu">=</span> []
+  mappend <span class="fu">=</span> (<span class="fu">++</span>)</code></pre>
+<p>Monoids are useful whenever an operation has to combine results, but there may be, in general, multiple different types of results and multiple different ways of combining the results. For example, say we are interested in the positive integers less than 100 that are divisible by 5 or 7, but not both. We can write a function that accumulates these in a monoid:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="co">-- this is not the most efficient!</span>
+<span class="ot">intInts ::</span> <span class="dt">Monoid</span> m <span class="ot">=&gt;</span> (<span class="dt">Integer</span> <span class="ot">-&gt;</span> m) <span class="ot">-&gt;</span> m   <span class="co">-- interesting ints!</span>
+intInts mk_m <span class="fu">=</span> go [<span class="dv">1</span><span class="fu">..</span><span class="dv">100</span>]   <span class="co">-- [1..100] is the list of numbers from 1 to 100</span>
+  <span class="kw">where</span> go [] <span class="fu">=</span> mempty
+        go (n<span class="fu">:</span>ns)
+          <span class="fu">|</span> <span class="kw">let</span> div_by_5 <span class="fu">=</span> n <span class="ot">`mod`</span> <span class="dv">5</span> <span class="fu">==</span> <span class="dv">0</span>
+                div_by_7 <span class="fu">=</span> n <span class="ot">`mod`</span> <span class="dv">7</span> <span class="fu">==</span> <span class="dv">0</span>
+          , (div_by_5 <span class="fu">||</span> div_by_7) <span class="fu">&amp;&amp;</span> (not (div_by_5 <span class="fu">&amp;&amp;</span> div_by_7))
+          <span class="fu">=</span> mk_m n <span class="fu">&lt;&gt;</span> go ns
+          <span class="fu">|</span> otherwise
+          <span class="fu">=</span> go ns</code></pre>
+<p>The <code>mk_m</code> parameter converts an <code>Integer</code> into whatever monoid the caller wants. The recursive <code>go</code> function then combines all the results according to the monoid operation.</p>
+<p>Here, we can get these results as a list:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">intIntsList ::</span> [<span class="dt">Integer</span>]
+intIntsList <span class="fu">=</span> intInts (<span class="fu">:</span>[])</code></pre>
+<p>The <code>(:[])</code> is just a section, applying the cons operator <code>:</code> to the empty list. It is the same as <code>(\x -&gt; [x])</code>. <code>(:[])</code> is sometimes pronounced “robot”.</p>
+<p>Suppose we want to combine the numbers as a product, instead of as a list. You might be tempted to say</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">intIntsProduct ::</span> <span class="dt">Integer</span>
+intIntsProduct <span class="fu">=</span> intInts id</code></pre>
+<p>(Recall that <code>id :: a -&gt; a</code>.) That doesn’t work, because there is no <code>Monoid</code> instance for <code>Integer</code>, and for good reason. There are <em>several</em> ways one might want to combine numbers monoidically. Instead of choosing one of these ways to be the <code>Monoid</code> instance, Haskell defines no <code>Monoid</code> instance. Instead, the <code>Data.Monoid</code> module exports two “wrappers” for numbers, with appropriate <code>Monoid</code> instances. Here is one:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Product</span> a <span class="fu">=</span> <span class="dt">Product</span> a
+<span class="kw">instance</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">Product</span> a) <span class="kw">where</span>
+  mempty                          <span class="fu">=</span> <span class="dt">Product</span> <span class="dv">1</span>
+  mappend (<span class="dt">Product</span> x) (<span class="dt">Product</span> y) <span class="fu">=</span> <span class="dt">Product</span> (x <span class="fu">*</span> y)
+
+<span class="ot">getProduct ::</span> <span class="dt">Product</span> a <span class="ot">-&gt;</span> a
+getProduct (<span class="dt">Product</span> x) <span class="fu">=</span> x</code></pre>
+<p>Now, we can take the product of the interesting integers:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="ot">intIntsProduct ::</span> <span class="dt">Integer</span>
+intIntsProduct <span class="fu">=</span> getProduct <span class="fu">$</span> intInts <span class="dt">Product</span></code></pre>
+<p>We still do have to explicit wrap (with <code>Product</code>) and unwrap (with <code>getProduct</code>).</p>
+<p>The idiom we see with <code>Product</code> is quite common when working with type classes. Because you can define only one instance of a class per type, we use this trick to effectively differentiate among instances.</p>
+<p>Check out the documentation for the <code>Data.Monoid</code> module to see more of these wrappers.</p>
+<h1 id="functor">Functor</h1>
+<p>There is one last type class you should learn about, <code>Functor</code>:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">class</span> <span class="dt">Functor</span> f <span class="kw">where</span>
+<span class="ot">  fmap ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b</code></pre>
+<p>It may be helpful to see some instances before we pick the definition apart:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="kw">instance</span> <span class="dt">Functor</span> [] <span class="kw">where</span>
+  fmap <span class="fu">=</span> map
+
+<span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Maybe</span> <span class="kw">where</span>
+  fmap _ <span class="dt">Nothing</span>  <span class="fu">=</span> <span class="dt">Nothing</span>
+  fmap f (<span class="dt">Just</span> x) <span class="fu">=</span> <span class="dt">Just</span> (f x)</code></pre>
+<p>Note that the type argument to <code>Functor</code> is not quite a type: it’s a <em>type constructor</em>. (Or, equivalently, <code>f</code> has kind <code>* -&gt; *</code>.) That’s why we make instances for <code>[]</code> (the list type) and <code>Maybe</code>, not, say, for <code>[Int]</code> or <code>Maybe Bool</code>. <code>fmap</code> takes a normal function and “lifts” it into the <code>Functor</code> type. For lists, this is just the <code>map</code> operation; for <code>Maybe</code>, the function affects the <code>Just</code> constructor but leaves <code>Nothing</code> well enough alone.</p>
+<p>You can think of functors as being containers, where it is possible to twiddle the contained bits. The <code>fmap</code> operation allows you access to the contained bits, <em>without</em> affecting the container. One of the key properties of <code>fmap</code> is that <code>fmap id == id</code>. That is, if you don’t change the elements of the container (<code>id</code> does nothing, recall), then you haven’t changed anything. For example, a binary tree might have a <code>Functor</code> instance. You can <code>fmap</code> to change the data in the tree, but the tree shape itself would stay the same.</p>
+<p>(Note that you wouldn’t want to do this with a binary <em>search</em> tree, because <code>fmap</code>ing might change the ordering relationship among elements, and your tree would no longer satisfy the binary search tree invariants.)</p>
+<p>Instead of writing out <code>fmap</code>, many people prefer to use the operator version <code>(&lt;$&gt;)</code>. When dealing with containers that you know nothing about, a <code>Functor</code> instance is often all you need to make progress!</p>
+<hr />
+<p><code>Generated 2015-02-11 09:25:50.93789</code></p>
+
+    </div>
+
+    <div id="footer"><center>
+      <font size="-2">Powered
+      by <a href="http://community.haskell.org/~ndm/shake/">shake</a>,
+      <a href="http://jaspervdj.be/hakyll/index.html">hakyll</a>,
+      <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>,
+      <a href="http://projects.haskell.org/diagrams">diagrams</a>,
+      and <a href="http://www.andres-loeh.de/lhs2tex/">lhs2TeX</a>.
+      </center>
+    </div>
+  </div>
+</body>
+
+</html>
